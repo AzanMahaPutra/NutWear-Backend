@@ -7,7 +7,7 @@ app.listen(env.port, () => {
   console.log(`Environment: ${env.nodeEnv}`);
   // BACKEND_PUBLIC_URL (lihat .env) — saat diisi dengan URL Cloudflare Tunnel, log ini
   // langsung menunjukkan URL Webhook Midtrans yang benar untuk ditempel ke Midtrans
-  // Sandbox Dashboard. Lihat CHANGELOG.md untuk langkah lengkapnya.
+  // Sandbox Dashboard. Lihat CHANGELOG.md untuk langkah lengkapnya
   console.log(`Midtrans Webhook URL: ${env.backendPublicUrl}/api/v1/payments/midtrans/webhook`);
   if (env.backendPublicUrl.includes("localhost") || env.backendPublicUrl.includes("127.0.0.1")) {
     console.log(
