@@ -15,6 +15,17 @@ const snap = new midtransClient.Snap({
 });
 
 /**
+ * UPDATE 1 — Core API dipakai khusus untuk mengecek status transaksi Midtrans yang
+ * sudah pernah dibuat (dipakai oleh orderService.continuePayment untuk memutuskan
+ * apakah Snap Token lama masih bisa dipakai ulang atau harus dibuatkan yang baru).
+ */
+const core = new midtransClient.CoreApi({
+  isProduction: env.midtrans.isProduction,
+  serverKey: env.midtrans.serverKey,
+  clientKey: env.midtrans.clientKey,
+});
+
+/**
  * Membuat Snap Token untuk satu order.
  * midtransOrderId harus unik (dipakai order_id di sisi Midtrans, berbeda dari orders.id internal
  * supaya bisa retry pembayaran tanpa bentrok "order_id already used").
@@ -52,4 +63,23 @@ function verifySignature({ orderId, statusCode, grossAmount, signatureKey }) {
   return expected === signatureKey;
 }
 
-module.exports = { createSnapTransaction, verifySignature };
+/**
+ * UPDATE 1 — Mengecek status transaksi Midtrans yang tersimpan (dipakai sebelum
+ * membuat Snap Transaction baru saat user menekan "Bayar Sekarang"/"Lanjutkan
+ * Pembayaran"), supaya Snap Token lama yang masih berlaku (transaction_status
+ * "pending" di sisi Midtrans) tetap dipakai ulang alih-alih membuat transaksi baru.
+ *
+ * Mengembalikan `null` (bukan melempar error) kalau transaksi tidak ditemukan (404)
+ * atau Core API gagal dihubungi — caller menganggap ini sebagai "tidak valid lagi"
+ * dan akan membuat Snap Transaction baru untuk order yang sama sebagai fallback aman.
+ */
+async function getTransactionStatus(midtransOrderId) {
+  try {
+    const status = await core.transaction.status(midtransOrderId);
+    return status;
+  } catch (err) {
+    return null;
+  }
+}
+
+module.exports = { createSnapTransaction, verifySignature, getTransactionStatus };

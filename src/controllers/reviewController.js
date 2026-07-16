@@ -18,9 +18,15 @@ const create = asyncHandler(async (req, res) => {
   return successResponse(res, { statusCode: 201, message: "Ulasan berhasil dikirim", data: review });
 });
 
+// UPDATE 7 — Edit Ulasan: UPDATE terhadap review yang sudah ada (bukan create baru).
+const update = asyncHandler(async (req, res) => {
+  const review = await reviewService.updateReview(req.user.id, req.params.id, req.body);
+  return successResponse(res, { message: "Ulasan berhasil diperbarui", data: review });
+});
+
 const remove = asyncHandler(async (req, res) => {
   await reviewService.deleteReview(req.params.id);
   return successResponse(res, { message: "Ulasan berhasil dihapus" });
 });
 
-module.exports = { getByProduct, getAll, create, remove };
+module.exports = { getByProduct, getAll, create, update, remove };

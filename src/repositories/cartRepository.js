@@ -67,4 +67,40 @@ async function deleteAllByUser(userId) {
   return true;
 }
 
-module.exports = { findAllByUser, findOne, findById, create, updateQuantity, deleteById, deleteAllByUser };
+/**
+ * UPDATE 2 — Menghapus sekumpulan item keranjang sekaligus berdasarkan id, dibatasi pada
+ * milik `userId` (mencegah item user lain ikut terhapus). Dipakai orderService.checkout
+ * untuk menghapus HANYA item yang ikut diproses checkout (item yang dicentang), bukan
+ * seluruh isi keranjang — item yang tidak dicentang tetap aman di keranjang.
+ */
+async function deleteByIds(userId, ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return true;
+  const { error } = await supabase.from("carts").delete().eq("user_id", userId).in("id", ids);
+  if (error) throw new AppError(error.message, 500);
+  return true;
+}
+
+/**
+ * UPDATE 8 — Menghapus item keranjang berdasarkan variant_id, dibatasi pada milik
+ * `userId`. Dipakai setelah pembayaran BERHASIL (bukan lagi segera saat checkout,
+ * lihat orderService.checkout & orderService.clearCartForPaidOrder) untuk membuang
+ * item keranjang yang variannya sama dengan yang baru saja lunas dibayar.
+ */
+async function deleteByVariantIds(userId, variantIds) {
+  if (!Array.isArray(variantIds) || variantIds.length === 0) return true;
+  const { error } = await supabase.from("carts").delete().eq("user_id", userId).in("variant_id", variantIds);
+  if (error) throw new AppError(error.message, 500);
+  return true;
+}
+
+module.exports = {
+  findAllByUser,
+  findOne,
+  findById,
+  create,
+  updateQuantity,
+  deleteById,
+  deleteAllByUser,
+  deleteByIds,
+  deleteByVariantIds,
+};

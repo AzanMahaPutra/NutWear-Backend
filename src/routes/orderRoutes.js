@@ -17,6 +17,8 @@ router.get("/my", orderController.getMyOrders);
 router.get("/my/:id", orderController.getMyOrderById);
 // Update 2, poin 1-3 — tombol "Batalkan Pesanan" (hanya pesanan milik sendiri).
 router.post("/my/:id/cancel", orderController.cancelMyOrder);
+// Update 1 — tombol "Bayar Sekarang"/"Lanjutkan Pembayaran" (hanya pesanan milik sendiri).
+router.post("/my/:id/continue-payment", orderController.continueMyOrderPayment);
 
 // Admin
 router.get("/", requireRole("admin"), orderQueryFilterValidator, handleValidation, orderController.getAllOrders);

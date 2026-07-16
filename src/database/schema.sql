@@ -124,7 +124,9 @@ create table if not exists order_items (
   variant_sku varchar(50),
   variant_ukuran varchar(10),
   variant_warna varchar(50),
-  image_url text
+  image_url text,
+  -- UPDATE 7 — lihat migrations/20260716_add_order_items_product_id.sql
+  product_id uuid references products(id) on delete set null
 );
 
 -- 11. payments
@@ -150,7 +152,11 @@ create table if not exists reviews (
   product_id uuid not null references products(id) on delete cascade,
   rating smallint not null check (rating between 1 and 5),
   comment text,
-  created_at timestamp not null default now()
+  created_at timestamp not null default now(),
+  -- UPDATE 7 — Sistem Ulasan Produk berbasis Pesanan, lihat
+  -- migrations/20260716_add_reviews_order_linkage.sql
+  order_id uuid references orders(id) on delete cascade,
+  order_item_id uuid references order_items(id) on delete set null
 );
 
 -- 13. banners

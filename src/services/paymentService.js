@@ -1,5 +1,6 @@
 const paymentRepository = require("../repositories/paymentRepository");
 const orderRepository = require("../repositories/orderRepository");
+const orderService = require("./orderService");
 const stockRepository = require("../repositories/stockRepository");
 const notificationService = require("../services/notificationService");
 const midtrans = require("../utils/midtrans");
@@ -231,6 +232,19 @@ async function handleMidtransNotification(payload) {
     order_id: order.id,
     status_baru: updatedOrder.status,
   });
+
+  // UPDATE 8 — item keranjang untuk produk pada pesanan ini baru dihapus DI SINI,
+  // setelah pembayaran benar-benar berhasil (status menjadi "sudah_dibayar"), bukan
+  // lagi segera saat checkout. Kalau pembayaran gagal/pending, item tetap ada di
+  // keranjang supaya user tidak kehilangan produknya begitu saja.
+  if (newOrderStatus === "sudah_dibayar") {
+    await orderService.clearCartForPaidOrder(order).catch((err) =>
+      logger.warn("[midtrans:webhook] gagal membersihkan keranjang setelah pembayaran berhasil", {
+        order_id: order.id,
+        error: err.message,
+      })
+    );
+  }
 
   // Kembalikan stok jika pembayaran batal/gagal/expired (stok sudah dikurangi saat checkout),
   // dan hanya jika order belum berstatus dibatalkan/expired sebelumnya (mencegah stok

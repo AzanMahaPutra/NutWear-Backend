@@ -24,6 +24,14 @@ const cancelMyOrder = asyncHandler(async (req, res) => {
   return successResponse(res, { message: "Pesanan berhasil dibatalkan", data: order });
 });
 
+// Update 1 — tombol "Bayar Sekarang" / "Lanjutkan Pembayaran" di Riwayat Pesanan &
+// Detail Pesanan (hanya untuk pesanan milik sendiri, hanya selagi status Menunggu
+// Pembayaran). Tidak membuat order/transaksi baru — lihat orderService.continuePayment.
+const continueMyOrderPayment = asyncHandler(async (req, res) => {
+  const result = await orderService.continuePayment(req.user.id, req.params.id);
+  return successResponse(res, { message: "Snap Token berhasil diambil", data: result });
+});
+
 // --- Admin ---
 const getAllOrders = asyncHandler(async (req, res) => {
   const { date, month, year, status } = req.query;
@@ -60,6 +68,7 @@ module.exports = {
   getMyOrders,
   getMyOrderById,
   cancelMyOrder,
+  continueMyOrderPayment,
   getAllOrders,
   getOrderByIdAdmin,
   updateStatus,

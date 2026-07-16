@@ -3,7 +3,7 @@ const { AppError } = require("../utils/AppError");
 
 const ORDER_SELECT = `
   *,
-  order_items ( id, variant_id, quantity, price,
+  order_items ( id, variant_id, product_id, quantity, price,
     product_name, product_slug, variant_sku, variant_ukuran, variant_warna, image_url,
     product_variants ( ukuran, warna, sku,
       products ( nama_produk, slug, product_images ( image_url, sort_order ) )
@@ -11,7 +11,8 @@ const ORDER_SELECT = `
   ),
   payments ( * ),
   user_addresses ( receiver_name, phone, province, city, district, postal_code, address ),
-  users ( nama_lengkap, email, no_hp )
+  users ( nama_lengkap, email, no_hp ),
+  reviews ( id, product_id, order_item_id, rating, comment )
 `;
 
 /**
