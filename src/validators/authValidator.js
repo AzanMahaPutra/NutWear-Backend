@@ -15,4 +15,17 @@ const loginValidator = [
   body("password").notEmpty().withMessage("Password wajib diisi"),
 ];
 
-module.exports = { registerValidator, loginValidator };
+const forgotPasswordValidator = [body("email").trim().isEmail().withMessage("Format email tidak valid")];
+
+const resetPasswordValidator = [
+  body("token").trim().notEmpty().withMessage("Token reset password wajib diisi"),
+  body("password").isLength({ min: 6 }).withMessage("Password minimal 6 karakter"),
+  body("confirmPassword").custom((value, { req }) => {
+    if (value !== req.body.password) {
+      throw new Error("Konfirmasi password tidak cocok");
+    }
+    return true;
+  }),
+];
+
+module.exports = { registerValidator, loginValidator, forgotPasswordValidator, resetPasswordValidator };

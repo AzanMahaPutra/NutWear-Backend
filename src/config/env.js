@@ -41,4 +41,22 @@ module.exports = {
     clientKey: process.env.MIDTRANS_CLIENT_KEY,
     isProduction: process.env.MIDTRANS_IS_PRODUCTION === "true",
   },
+
+  // SMTP untuk pengiriman email (saat ini hanya dipakai fitur Forgot Password —
+  // lihat utils/mailer.js). Lihat CHANGELOG.md untuk contoh pengisian .env
+  // lengkap (mis. App Password Gmail).
+  smtp: {
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    // "true"/"1" untuk port 465 (SSL langsung). Default false (STARTTLS, port 587).
+    secure: ["true", "1"].includes((process.env.SMTP_SECURE || "false").toLowerCase()),
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+  },
+
+  passwordReset: {
+    // Masa berlaku token reset password, dalam menit.
+    tokenExpiresMinutes: Number(process.env.PASSWORD_RESET_TOKEN_EXPIRES_MINUTES) || 30,
+  },
 };

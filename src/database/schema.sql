@@ -215,6 +215,17 @@ create table if not exists product_pairs (
   unique (product_id, paired_product_id)
 );
 
+-- 17. password_reset_tokens — fitur Forgot Password, lihat
+-- migrations/20260720_create_password_reset_tokens.sql
+create table if not exists password_reset_tokens (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references users(id) on delete cascade,
+  token_hash varchar(64) not null unique,
+  expires_at timestamp not null,
+  used_at timestamp,
+  created_at timestamp not null default now()
+);
+
 -- =====================================================================
 -- Index tambahan untuk query yang sering dipakai (tidak mengubah skema,
 -- hanya optimisasi pencarian/filter yang dibutuhkan Product API).
@@ -229,3 +240,5 @@ create index if not exists idx_carts_user_id on carts(user_id);
 create index if not exists idx_wishlists_user_id on wishlists(user_id);
 create index if not exists idx_notifications_user_created on notifications(user_id, created_at desc);
 create index if not exists idx_notifications_user_unread on notifications(user_id, is_read);
+create index if not exists idx_password_reset_tokens_user_id on password_reset_tokens(user_id);
+create index if not exists idx_password_reset_tokens_token_hash on password_reset_tokens(token_hash);

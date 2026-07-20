@@ -52,4 +52,23 @@ const me = asyncHandler(async (req, res) => {
   return successResponse(res, { message: "OK", data: { user: req.user } });
 });
 
-module.exports = { register, login, refresh, logout, me };
+// Pesan generik yang SELALU dikembalikan apa pun hasilnya (email ditemukan atau
+// tidak, pengiriman email berhasil atau gagal) — mencegah enumerasi akun.
+// Lihat authService.requestPasswordReset untuk detail kenapa ini aman dilakukan
+// di sini (bukan di service).
+const FORGOT_PASSWORD_GENERIC_MESSAGE =
+  "Jika email yang Anda masukkan terdaftar pada sistem, kami akan mengirimkan tautan untuk mengatur ulang password.";
+
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  await authService.requestPasswordReset(email);
+  return successResponse(res, { message: FORGOT_PASSWORD_GENERIC_MESSAGE });
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token, password } = req.body;
+  await authService.resetPassword({ token, password });
+  return successResponse(res, { message: "Password berhasil diperbarui, silakan login dengan password baru Anda" });
+});
+
+module.exports = { register, login, refresh, logout, me, forgotPassword, resetPassword };
