@@ -10,13 +10,16 @@ const { REFRESH_TOKEN_COOKIE, getRefreshCookieOptions, getClearRefreshCookieOpti
 
 const register = asyncHandler(async (req, res) => {
   const { namaLengkap, email, password, noHp } = req.body;
-  const { user, accessToken, refreshToken } = await authService.register({ namaLengkap, email, password, noHp });
+  // authService.register() TIDAK mengembalikan session/token — Supabase Auth
+  // Admin API (admin.createUser) memang tidak membuat session, sejalan dengan
+  // alur produk saat ini yang mengharuskan user Login ulang secara eksplisit
+  // setelah Register (lihat RegisterForm frontend: redirect ke /login).
+  const { user } = await authService.register({ namaLengkap, email, password, noHp });
 
-  res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, getRefreshCookieOptions());
   return successResponse(res, {
     statusCode: 201,
     message: "Registrasi berhasil",
-    data: { user, accessToken },
+    data: { user },
   });
 });
 
@@ -54,8 +57,8 @@ const me = asyncHandler(async (req, res) => {
 
 // Pesan generik yang SELALU dikembalikan apa pun hasilnya (email ditemukan atau
 // tidak, pengiriman email berhasil atau gagal) — mencegah enumerasi akun.
-// Lihat authService.requestPasswordReset untuk detail kenapa ini aman dilakukan
-// di sini (bukan di service).
+// Supabase Auth sendiri sudah tidak membedakan responsnya untuk kedua kasus itu
+// (lihat authService.requestPasswordReset), pesan generik ini murni konsistensi UI.
 const FORGOT_PASSWORD_GENERIC_MESSAGE =
   "Jika email yang Anda masukkan terdaftar pada sistem, kami akan mengirimkan tautan untuk mengatur ulang password.";
 
@@ -65,10 +68,13 @@ const forgotPassword = asyncHandler(async (req, res) => {
   return successResponse(res, { message: FORGOT_PASSWORD_GENERIC_MESSAGE });
 });
 
-const resetPassword = asyncHandler(async (req, res) => {
-  const { token, password } = req.body;
-  await authService.resetPassword({ token, password });
-  return successResponse(res, { message: "Password berhasil diperbarui, silakan login dengan password baru Anda" });
-});
+// CATATAN MIGRASI SUPABASE AUTH: endpoint `resetPassword` (Langkah 2 Forgot
+// Password) SENGAJA DIHAPUS dari backend. Link email Supabase Auth membawa
+// recovery session yang HANYA bisa dibaca oleh browser (lewat URL), sehingga
+// penggantian password wajib dipanggil langsung dari frontend memakai
+// `supabase.auth.updateUser({ password })` — lihat
+// frontend/features/auth/components/ResetPasswordForm.tsx dan
+// frontend/services/authService.ts. Ini juga persis skema resmi yang
+// direkomendasikan dokumentasi Supabase Auth untuk alur Reset Password.
 
-module.exports = { register, login, refresh, logout, me, forgotPassword, resetPassword };
+module.exports = { register, login, refresh, logout, me, forgotPassword };

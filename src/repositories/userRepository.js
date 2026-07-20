@@ -4,6 +4,13 @@ const { AppError } = require("../utils/AppError");
 /**
  * Repository users — satu-satunya layer yang melakukan query ke tabel `users`.
  * Service memanggil fungsi-fungsi ini tanpa perlu tahu detail Supabase.
+ *
+ * CATATAN MIGRASI SUPABASE AUTH: sejak migrasi, tabel `users` di sini adalah
+ * tabel PROFIL yang melengkapi `auth.users` bawaan Supabase (nama_lengkap,
+ * no_hp, role) — bukan lagi tabel yang menyimpan kredensial. Kolom `id` WAJIB
+ * sama persis dengan id di `auth.users` (lihat migrations/ untuk skema & FK),
+ * dan kolom `password_hash` sudah tidak dipakai/tidak diisi lagi karena
+ * password sepenuhnya dikelola Supabase Auth.
  */
 async function findByEmail(email) {
   const { data, error } = await supabase.from("users").select("*").eq("email", email).maybeSingle();
@@ -35,10 +42,16 @@ async function findAllCustomerIds() {
   return (data || []).map((row) => row.id);
 }
 
-async function create({ namaLengkap, email, passwordHash, noHp }) {
+/**
+ * Buat baris profil baru. `id` WAJIB diisi dari luar (id user yang sudah
+ * dibuat lebih dulu di Supabase Auth lewat `supabase.auth.admin.createUser`
+ * — lihat authService.register), bukan digenerate di sini, supaya `users.id`
+ * selalu identik dengan `auth.users.id`.
+ */
+async function create({ id, namaLengkap, email, noHp, role = "customer" }) {
   const { data, error } = await supabase
     .from("users")
-    .insert({ nama_lengkap: namaLengkap, email, password_hash: passwordHash, no_hp: noHp, role: "customer" })
+    .insert({ id, nama_lengkap: namaLengkap, email, no_hp: noHp, role })
     .select()
     .single();
   if (error) throw new AppError(error.message, 500);

@@ -17,15 +17,8 @@ const loginValidator = [
 
 const forgotPasswordValidator = [body("email").trim().isEmail().withMessage("Format email tidak valid")];
 
-const resetPasswordValidator = [
-  body("token").trim().notEmpty().withMessage("Token reset password wajib diisi"),
-  body("password").isLength({ min: 6 }).withMessage("Password minimal 6 karakter"),
-  body("confirmPassword").custom((value, { req }) => {
-    if (value !== req.body.password) {
-      throw new Error("Konfirmasi password tidak cocok");
-    }
-    return true;
-  }),
-];
+// resetPasswordValidator DIHAPUS — endpoint /auth/reset-password sudah tidak ada
+// di backend (lihat authRoutes.js), penggantian password sekarang dilakukan
+// langsung di frontend lewat Supabase Auth.
 
-module.exports = { registerValidator, loginValidator, forgotPasswordValidator, resetPasswordValidator };
+module.exports = { registerValidator, loginValidator, forgotPasswordValidator };

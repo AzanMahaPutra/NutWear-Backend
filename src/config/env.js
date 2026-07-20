@@ -8,6 +8,9 @@ module.exports = {
   nodeEnv: process.env.NODE_ENV || "development",
   // FRONTEND_URL boleh berisi beberapa origin dipisah koma (mis. saat frontend juga
   // sempat diakses lewat URL lain selama development) — dipakai oleh CORS di app.js.
+  // Nilai pertama juga dipakai sebagai `redirectTo` link email Forgot Password
+  // Supabase Auth (lihat authService.requestPasswordReset) — WAJIB sudah terdaftar
+  // di Supabase Dashboard → Authentication → URL Configuration → Redirect URLs.
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:3000",
   frontendUrls: (process.env.FRONTEND_URL || "http://localhost:3000")
     .split(",")
@@ -29,34 +32,15 @@ module.exports = {
   // header X-Forwarded-For.
   trustProxy: ["1", "true"].includes((process.env.TRUST_PROXY || "0").toLowerCase()),
 
-  jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET,
-    refreshSecret: process.env.JWT_REFRESH_SECRET,
-    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "15m",
-    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
-  },
+  // CATATAN MIGRASI SUPABASE AUTH: konfigurasi `jwt.*` (JWT_ACCESS_SECRET, dst),
+  // `smtp.*` (SMTP_HOST, dst), dan `passwordReset.*` sudah TIDAK dipakai lagi sejak
+  // migrasi ke Supabase Auth bawaan — session token dan pengiriman email reset
+  // password sekarang sepenuhnya ditangani oleh Supabase (lihat CHANGELOG.md).
+  // Env var lama boleh dihapus dari .env, sudah tidak dibaca di mana pun.
 
   midtrans: {
     serverKey: process.env.MIDTRANS_SERVER_KEY,
     clientKey: process.env.MIDTRANS_CLIENT_KEY,
     isProduction: process.env.MIDTRANS_IS_PRODUCTION === "true",
-  },
-
-  // SMTP untuk pengiriman email (saat ini hanya dipakai fitur Forgot Password —
-  // lihat utils/mailer.js). Lihat CHANGELOG.md untuk contoh pengisian .env
-  // lengkap (mis. App Password Gmail).
-  smtp: {
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || 587,
-    // "true"/"1" untuk port 465 (SSL langsung). Default false (STARTTLS, port 587).
-    secure: ["true", "1"].includes((process.env.SMTP_SECURE || "false").toLowerCase()),
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-  },
-
-  passwordReset: {
-    // Masa berlaku token reset password, dalam menit.
-    tokenExpiresMinutes: Number(process.env.PASSWORD_RESET_TOKEN_EXPIRES_MINUTES) || 30,
   },
 };
