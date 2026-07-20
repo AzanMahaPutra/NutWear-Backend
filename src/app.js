@@ -31,7 +31,17 @@ app.use(
     // Request tanpa Origin header (mis. panggilan server-to-server dari Midtrans ke
     // endpoint webhook) tidak dikenai pengecekan CORS oleh browser sama sekali, jadi
     // tidak perlu — dan tidak boleh — didaftarkan di sini.
-    origin: env.frontendUrls,
+    //
+    // Selain exact-match ke frontendUrls, kita juga terima origin dari preview
+    // deployment Vercel milik project yang sama (lihat vercelPreviewOriginRegex
+    // di config/env.js) — supaya testing di URL preview/branch tidak keblokir
+    // CORS setiap kali Vercel bikin URL baru.
+    origin(origin, callback) {
+      if (!origin) return callback(null, true); // server-to-server, curl, dll — bukan browser
+      if (env.frontendUrls.includes(origin)) return callback(null, true);
+      if (env.vercelPreviewOriginRegex?.test(origin)) return callback(null, true);
+      return callback(new Error(`Origin tidak diizinkan oleh CORS: ${origin}`));
+    },
     credentials: true, // supaya cookie refresh token bisa dikirim cross-origin
   })
 );

@@ -17,6 +17,23 @@ module.exports = {
     .map((url) => url.trim())
     .filter(Boolean),
 
+  // Vercel membuat URL BARU setiap kali ada preview deployment (per branch,
+  // per commit, dst) dengan pola:
+  //   https://<nama-project>-<hash-atau-info-branch>-<nama-tim/akun>.vercel.app
+  // URL ini SELALU beda dari domain production dan TIDAK MUNGKIN didaftarkan
+  // manual satu-satu di FRONTEND_URL setiap kali deploy. Makanya, selain
+  // exact-match dari frontendUrls di atas, kita juga percayai origin apa pun
+  // yang jelas-jelas milik project Vercel yang sama ini — dicocokkan lewat
+  // VERCEL_PROJECT_NAME (nama project di Vercel, contoh: "nut-wear-frontend").
+  // Regex ini match:
+  //   - https://nut-wear-frontend.vercel.app                     (production)
+  //   - https://nut-wear-frontend-git-main-peanuts67.vercel.app  (branch preview)
+  //   - https://nut-wear-frontend-<hash>-peanuts67.vercel.app    (commit preview)
+  // dan TIDAK match domain vercel.app project lain, jadi tetap aman.
+  vercelPreviewOriginRegex: process.env.VERCEL_PROJECT_NAME
+    ? new RegExp(`^https:\\/\\/${process.env.VERCEL_PROJECT_NAME}(-[a-z0-9-]+)?\\.vercel\\.app$`)
+    : null,
+
   // URL publik tempat backend ini bisa diakses dari luar (mis. domain Cloudflare Tunnel
   // saat development, atau domain production sebenarnya). Dipakai untuk menampilkan URL
   // Webhook Midtrans yang benar di log saat server start — lihat CHANGELOG.md.
