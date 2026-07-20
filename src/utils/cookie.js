@@ -21,4 +21,18 @@ function getRefreshCookieOptions() {
   };
 }
 
-module.exports = { REFRESH_TOKEN_COOKIE, getRefreshCookieOptions };
+/**
+ * Opsi untuk MENGHAPUS cookie refresh token (dipakai authController.logout).
+ * Sengaja dipisah dari getRefreshCookieOptions() (tanpa maxAge, expires di masa lalu)
+ * tapi wajib tetap membawa httpOnly/secure/sameSite/path yang SAMA dengan saat cookie
+ * itu di-set. Kalau atribut ini tidak sama persis — terutama secure & sameSite di
+ * production (Vercel <-> Railway, cross-site, sameSite:"none") — browser bisa gagal
+ * mengganti/menghapus cookie lama, sehingga refresh token lama tetap tersimpan di
+ * browser walaupun endpoint /auth/logout sudah dipanggil.
+ */
+function getClearRefreshCookieOptions() {
+  const { maxAge, ...rest } = getRefreshCookieOptions();
+  return rest;
+}
+
+module.exports = { REFRESH_TOKEN_COOKIE, getRefreshCookieOptions, getClearRefreshCookieOptions };

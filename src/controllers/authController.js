@@ -1,7 +1,7 @@
 const authService = require("../services/authService");
 const { successResponse } = require("../utils/response");
 const { asyncHandler } = require("../utils/asyncHandler");
-const { REFRESH_TOKEN_COOKIE, getRefreshCookieOptions } = require("../utils/cookie");
+const { REFRESH_TOKEN_COOKIE, getRefreshCookieOptions, getClearRefreshCookieOptions } = require("../utils/cookie");
 
 /**
  * Controller Auth — hanya menangani request/response HTTP,
@@ -43,7 +43,7 @@ const refresh = asyncHandler(async (req, res) => {
 });
 
 const logout = asyncHandler(async (req, res) => {
-  res.clearCookie(REFRESH_TOKEN_COOKIE, { path: "/" });
+  res.clearCookie(REFRESH_TOKEN_COOKIE, getClearRefreshCookieOptions());
   return successResponse(res, { message: "Logout berhasil" });
 });
 
