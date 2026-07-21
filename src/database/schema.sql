@@ -14,6 +14,11 @@ create table if not exists users (
   password_hash text not null,
   no_hp varchar(20),
   role varchar(20) not null default 'customer', -- 'customer' | 'admin'
+  -- UPDATE — Banned User & Pengajuan Unban (lihat migrations/20260721_add_user_ban_system.sql)
+  status varchar(20) not null default 'aktif' check (status in ('aktif', 'banned')),
+  banned_reason text,
+  banned_at timestamp,
+  banned_by uuid references users(id),
   created_at timestamp not null default now(),
   updated_at timestamp not null default now()
 );
@@ -226,6 +231,19 @@ create table if not exists password_reset_tokens (
   created_at timestamp not null default now()
 );
 
+-- 18. unban_requests — fitur Banned User & Pengajuan Unban, lihat
+-- migrations/20260721_add_user_ban_system.sql
+create table if not exists unban_requests (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references users(id) on delete cascade,
+  banned_reason_snapshot text,
+  request_reason text not null,
+  status varchar(20) not null default 'menunggu' check (status in ('menunggu', 'disetujui', 'ditolak')),
+  created_at timestamp not null default now(),
+  processed_at timestamp,
+  processed_by uuid references users(id)
+);
+
 -- =====================================================================
 -- Index tambahan untuk query yang sering dipakai (tidak mengubah skema,
 -- hanya optimisasi pencarian/filter yang dibutuhkan Product API).
@@ -242,3 +260,6 @@ create index if not exists idx_notifications_user_created on notifications(user_
 create index if not exists idx_notifications_user_unread on notifications(user_id, is_read);
 create index if not exists idx_password_reset_tokens_user_id on password_reset_tokens(user_id);
 create index if not exists idx_password_reset_tokens_token_hash on password_reset_tokens(token_hash);
+create index if not exists idx_users_status on users(status);
+create index if not exists idx_unban_requests_user_id on unban_requests(user_id);
+create index if not exists idx_unban_requests_status on unban_requests(status);

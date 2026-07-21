@@ -34,6 +34,10 @@ const requireAuth = asyncHandler(async (req, res, next) => {
     namaLengkap: profile.nama_lengkap,
     noHp: profile.no_hp,
     role: profile.role,
+    // UPDATE — Banned User: status akun disertakan di req.user supaya
+    // blockIfBanned (di bawah) bisa membatasi aktivitas tanpa query ulang.
+    status: profile.status ?? "aktif",
+    bannedReason: profile.banned_reason ?? null,
   };
   next();
 });
@@ -51,4 +55,20 @@ function requireRole(...allowedRoles) {
   };
 }
 
-module.exports = { requireAuth, requireRole };
+/**
+ * UPDATE — Banned User: middleware reusable untuk membatasi aktivitas tertentu
+ * (Checkout, Beri/Edit Review, Tambah ke Wishlist, Tambah ke Keranjang) bagi
+ * user yang sedang berstatus "banned". User yang dibanned TETAP bisa login &
+ * memakai route lain (lihat authMiddleware.requireAuth) — middleware ini hanya
+ * dipasang di route-route yang memang dibatasi (lihat routes/*.js terkait).
+ * Dipasang setelah requireAuth: requireAuth, blockIfBanned
+ */
+function blockIfBanned(req, res, next) {
+  if (req.user?.status === "banned") {
+    const reason = req.user.bannedReason ? ` Alasan: ${req.user.bannedReason}.` : "";
+    throw new AppError(`Akun Anda sedang dibanned dan tidak dapat melakukan aktivitas ini.${reason}`, 403);
+  }
+  next();
+}
+
+module.exports = { requireAuth, requireRole, blockIfBanned };

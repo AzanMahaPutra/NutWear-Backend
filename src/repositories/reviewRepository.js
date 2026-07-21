@@ -61,6 +61,17 @@ async function findAll({ rating, productId } = {}) {
   return data;
 }
 
+/** UPDATE — Manajemen User: total ulasan per user untuk kolom "Total Review"
+ * di halaman Manajemen User Admin. Hanya menghitung (head:true), tidak mengambil data. */
+async function countByUser(userId) {
+  const { count, error } = await supabase
+    .from("reviews")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  if (error) throw new AppError(error.message, 500);
+  return count || 0;
+}
+
 async function findOne(userId, productId) {
   const { data, error } = await supabase
     .from("reviews")
@@ -167,6 +178,7 @@ async function updateStatus(id, status) {
 module.exports = {
   findByProduct,
   findAll,
+  countByUser,
   findOne,
   findByOrderAndProduct,
   findById,

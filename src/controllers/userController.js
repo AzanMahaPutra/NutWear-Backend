@@ -17,4 +17,11 @@ const getAllCustomers = asyncHandler(async (req, res) => {
   return successResponse(res, { message: "Daftar pelanggan berhasil diambil", data: customers });
 });
 
-module.exports = { getProfile, updateProfile, getAllCustomers };
+// UPDATE — Banned User: Admin melakukan banned terhadap satu user lewat
+// halaman Manajemen User. Alasan (reason) wajib diisi, divalidasi di validators/userValidator.js.
+const banUser = asyncHandler(async (req, res) => {
+  const user = await userService.banUser(req.user.id, req.params.id, req.body.reason);
+  return successResponse(res, { message: "Akun berhasil dibanned", data: user });
+});
+
+module.exports = { getProfile, updateProfile, getAllCustomers, banUser };

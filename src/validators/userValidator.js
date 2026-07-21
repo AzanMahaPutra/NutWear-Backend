@@ -16,4 +16,9 @@ const addressValidator = [
   body("isDefault").optional().isBoolean(),
 ];
 
-module.exports = { updateProfileValidator, addressValidator };
+// UPDATE — Banned User: alasan banned wajib diisi (lihat userController.banUser).
+const banUserValidator = [
+  body("reason").trim().notEmpty().withMessage("Alasan banned wajib diisi").isLength({ max: 500 }).withMessage("Alasan banned maksimal 500 karakter"),
+];
+
+module.exports = { updateProfileValidator, addressValidator, banUserValidator };

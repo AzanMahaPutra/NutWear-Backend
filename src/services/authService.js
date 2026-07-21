@@ -25,6 +25,10 @@ function toSafeUser(profile) {
     email: profile.email,
     noHp: profile.no_hp,
     role: profile.role,
+    // UPDATE — Banned User: dikirim supaya frontend tahu status akun begitu
+    // login berhasil (user yang dibanned tetap boleh login, lihat authMiddleware).
+    status: profile.status ?? "aktif",
+    bannedReason: profile.banned_reason ?? null,
   };
 }
 

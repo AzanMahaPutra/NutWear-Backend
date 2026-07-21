@@ -13,6 +13,7 @@ const reviewRoutes = require("./reviewRoutes");
 const stockRoutes = require("./stockRoutes");
 const dashboardRoutes = require("./dashboardRoutes");
 const notificationRoutes = require("./notificationRoutes");
+const unbanRequestRoutes = require("./unbanRequestRoutes");
 
 const router = express.Router();
 
@@ -34,6 +35,8 @@ router.use("/reviews", reviewRoutes);
 router.use("/stock", stockRoutes);
 router.use("/admin/dashboard", dashboardRoutes);
 router.use("/notifications", notificationRoutes);
+// UPDATE — Banned User & Pengajuan Unban.
+router.use("/unban-requests", unbanRequestRoutes);
 
 router.get("/health", (req, res) => {
   res.json({ success: true, message: "NutWear API is running" });

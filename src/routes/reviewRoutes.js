@@ -2,14 +2,15 @@ const express = require("express");
 const reviewController = require("../controllers/reviewController");
 const { createReviewValidator, updateReviewValidator, updateStatusValidator } = require("../validators/reviewValidator");
 const { handleValidation } = require("../middlewares/handleValidation");
-const { requireAuth, requireRole } = require("../middlewares/authMiddleware");
+const { requireAuth, requireRole, blockIfBanned } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
 router.get("/product/:productId", reviewController.getByProduct);
-router.post("/", requireAuth, createReviewValidator, handleValidation, reviewController.create);
+// UPDATE — Banned User: user yang dibanned tidak boleh memberi/mengedit ulasan.
+router.post("/", requireAuth, blockIfBanned, createReviewValidator, handleValidation, reviewController.create);
 // UPDATE 7 — Edit Ulasan (Riwayat Pesanan). Kepemilikan ulasan divalidasi di service.
-router.put("/:id", requireAuth, updateReviewValidator, handleValidation, reviewController.update);
+router.put("/:id", requireAuth, blockIfBanned, updateReviewValidator, handleValidation, reviewController.update);
 
 // Admin — moderasi
 router.get("/", requireAuth, requireRole("admin"), reviewController.getAll);

@@ -27,9 +27,53 @@ async function findById(id) {
 async function findAllCustomers() {
   const { data, error } = await supabase
     .from("users")
-    .select("id, nama_lengkap, email, no_hp, role, created_at")
+    .select("id, nama_lengkap, email, no_hp, role, status, banned_reason, banned_at, created_at")
     .eq("role", "customer")
     .order("created_at", { ascending: false });
+  if (error) throw new AppError(error.message, 500);
+  return data;
+}
+
+/**
+ * UPDATE — Banned User: menandai satu user sebagai banned. `bannedBy` adalah id
+ * Admin yang melakukan aksi (req.user.id), disimpan sebagai riwayat siapa yang
+ * melakukan banned (lihat CHANGELOG.md).
+ */
+async function banUser(id, { reason, bannedBy }) {
+  const { data, error } = await supabase
+    .from("users")
+    .update({
+      status: "banned",
+      banned_reason: reason,
+      banned_at: new Date().toISOString(),
+      banned_by: bannedBy,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw new AppError(error.message, 500);
+  return data;
+}
+
+/**
+ * UPDATE — Pengajuan Unban: dipanggil saat Admin menyetujui permohonan unban.
+ * Status akun kembali "aktif" dan seluruh jejak banned dibersihkan dari kolom
+ * aktif (riwayat lengkap tetap tersimpan di tabel unban_requests).
+ */
+async function unbanUser(id) {
+  const { data, error } = await supabase
+    .from("users")
+    .update({
+      status: "aktif",
+      banned_reason: null,
+      banned_at: null,
+      banned_by: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select()
+    .single();
   if (error) throw new AppError(error.message, 500);
   return data;
 }
@@ -69,4 +113,13 @@ async function updateById(id, fields) {
   return data;
 }
 
-module.exports = { findByEmail, findById, findAllCustomers, findAllCustomerIds, create, updateById };
+module.exports = {
+  findByEmail,
+  findById,
+  findAllCustomers,
+  findAllCustomerIds,
+  create,
+  updateById,
+  banUser,
+  unbanUser,
+};

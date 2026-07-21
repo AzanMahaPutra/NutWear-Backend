@@ -1,7 +1,7 @@
 const express = require("express");
 const userController = require("../controllers/userController");
 const addressController = require("../controllers/addressController");
-const { updateProfileValidator, addressValidator } = require("../validators/userValidator");
+const { updateProfileValidator, addressValidator, banUserValidator } = require("../validators/userValidator");
 const { handleValidation } = require("../middlewares/handleValidation");
 const { requireAuth, requireRole } = require("../middlewares/authMiddleware");
 
@@ -18,7 +18,9 @@ router.put("/me/addresses/:id", addressValidator, handleValidation, addressContr
 router.delete("/me/addresses/:id", addressController.remove);
 router.patch("/me/addresses/:id/default", addressController.setDefault);
 
-// Admin — Manajemen Pelanggan
+// Admin — Manajemen User (Manajemen Pelanggan)
 router.get("/", requireRole("admin"), userController.getAllCustomers);
+// UPDATE — Banned User: Admin melakukan banned terhadap user tertentu.
+router.patch("/:id/ban", requireRole("admin"), banUserValidator, handleValidation, userController.banUser);
 
 module.exports = router;

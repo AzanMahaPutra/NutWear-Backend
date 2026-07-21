@@ -6,13 +6,14 @@ const {
   orderQueryFilterValidator,
 } = require("../validators/orderValidator");
 const { handleValidation } = require("../middlewares/handleValidation");
-const { requireAuth, requireRole } = require("../middlewares/authMiddleware");
+const { requireAuth, requireRole, blockIfBanned } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 router.use(requireAuth);
 
 // Customer
-router.post("/checkout", checkoutValidator, handleValidation, orderController.checkout);
+// UPDATE — Banned User: user yang dibanned tidak boleh Checkout.
+router.post("/checkout", blockIfBanned, checkoutValidator, handleValidation, orderController.checkout);
 router.get("/my", orderController.getMyOrders);
 router.get("/my/:id", orderController.getMyOrderById);
 // Update 2, poin 1-3 — tombol "Batalkan Pesanan" (hanya pesanan milik sendiri).

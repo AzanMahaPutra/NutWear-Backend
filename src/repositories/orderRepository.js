@@ -75,6 +75,17 @@ async function findAllByUser(userId) {
   return data;
 }
 
+/** UPDATE — Manajemen User: total pesanan per user untuk kolom "Total Pesanan"
+ * di halaman Manajemen User Admin. Hanya menghitung (head:true), tidak mengambil data. */
+async function countByUser(userId) {
+  const { count, error } = await supabase
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  if (error) throw new AppError(error.message, 500);
+  return count || 0;
+}
+
 async function findAll(filters = {}) {
   let query = supabase.from("orders").select(ORDER_SELECT).order("created_at", { ascending: false });
   query = applyFilters(query, filters);
@@ -187,6 +198,7 @@ async function deleteManyByFilter({ date, month, year, status, allowedStatuses =
 module.exports = {
   BULK_DELETE_ALLOWED_STATUSES,
   findAllByUser,
+  countByUser,
   findAll,
   findById,
   findByMidtransOrderId,
