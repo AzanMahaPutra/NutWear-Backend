@@ -9,7 +9,7 @@ const { AppError } = require("../utils/AppError");
 
 const REQUEST_SELECT_WITH_USER = `
   *,
-  users ( nama_lengkap, email, status )
+  users!unban_requests_user_id_fkey ( nama_lengkap, email, status )
 `;
 
 /** Cek apakah user masih punya permohonan yang berstatus "menunggu" — dipakai
