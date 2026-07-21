@@ -14,11 +14,15 @@ const REVIEW_SELECT_WITH_PURCHASE = `
   order_items ( product_name, variant_ukuran, variant_warna, quantity )
 `;
 
+// UPDATE — Moderasi Review: halaman Detail Produk (publik) hanya boleh menampilkan
+// review berstatus "ditampilkan". Review yang disembunyikan Admin dianggap tidak
+// ada bagi pengunjung, meski tetap tersimpan di database.
 async function findByProduct(productId) {
   const { data, error } = await supabase
     .from("reviews")
     .select(REVIEW_SELECT_WITH_PURCHASE)
     .eq("product_id", productId)
+    .eq("status", "ditampilkan")
     .order("created_at", { ascending: false });
   if (error) throw new AppError(error.message, 500);
   return data;
@@ -138,12 +142,26 @@ async function deleteById(id) {
   return true;
 }
 
+/** UPDATE — Moderasi Review: rata-rata rating & jumlah review yang tampil ke
+ * publik hanya dihitung dari review berstatus "ditampilkan". */
 async function getAverageRating(productId) {
-  const { data, error } = await supabase.from("reviews").select("rating").eq("product_id", productId);
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("rating")
+    .eq("product_id", productId)
+    .eq("status", "ditampilkan");
   if (error) throw new AppError(error.message, 500);
   if (!data.length) return { average: 0, count: 0 };
   const sum = data.reduce((acc, r) => acc + r.rating, 0);
   return { average: Number((sum / data.length).toFixed(1)), count: data.length };
+}
+
+/** UPDATE — Moderasi Review: mengubah status review (ditampilkan/disembunyikan)
+ * tanpa menghapus baris review dari database. */
+async function updateStatus(id, status) {
+  const { data, error } = await supabase.from("reviews").update({ status }).eq("id", id).select().single();
+  if (error) throw new AppError(error.message, 500);
+  return data;
 }
 
 module.exports = {
@@ -156,4 +174,5 @@ module.exports = {
   update,
   deleteById,
   getAverageRating,
+  updateStatus,
 };

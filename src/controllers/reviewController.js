@@ -32,4 +32,12 @@ const remove = asyncHandler(async (req, res) => {
   return successResponse(res, { message: "Ulasan berhasil dihapus" });
 });
 
-module.exports = { getByProduct, getAll, create, update, remove };
+// UPDATE — Moderasi Review: Admin menyembunyikan/menampilkan review.
+const updateStatus = asyncHandler(async (req, res) => {
+  const review = await reviewService.setReviewStatus(req.params.id, req.body.status);
+  const message =
+    review.status === "disembunyikan" ? "Ulasan berhasil disembunyikan" : "Ulasan berhasil ditampilkan kembali";
+  return successResponse(res, { message, data: review });
+});
+
+module.exports = { getByProduct, getAll, create, update, remove, updateStatus };

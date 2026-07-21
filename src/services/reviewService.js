@@ -23,6 +23,8 @@ function toResponse(review) {
     comment: review.comment,
     createdAt: review.created_at,
     orderId: review.order_id ?? null,
+    // UPDATE — Moderasi Review: status "ditampilkan" | "disembunyikan".
+    status: review.status ?? "ditampilkan",
     purchaseInfo: purchasedItem
       ? {
           productName: purchasedItem.product_name ?? null,
@@ -113,4 +115,28 @@ async function deleteReview(id) {
   return true;
 }
 
-module.exports = { getReviewsByProduct, getAllReviews, createReview, updateReview, deleteReview };
+/**
+ * UPDATE — Moderasi Review: Admin menyembunyikan/menampilkan review tanpa
+ * menghapusnya dari database. Review tidak ditemukan -> 404.
+ */
+async function setReviewStatus(id, status) {
+  if (!["ditampilkan", "disembunyikan"].includes(status)) {
+    throw new AppError("Status review tidak valid", 400);
+  }
+
+  const existing = await reviewRepository.findById(id);
+  if (!existing) throw new AppError("Ulasan tidak ditemukan", 404);
+
+  const updated = await reviewRepository.updateStatus(id, status);
+  const full = await reviewRepository.findById(updated.id);
+  return toResponse(full);
+}
+
+module.exports = {
+  getReviewsByProduct,
+  getAllReviews,
+  createReview,
+  updateReview,
+  deleteReview,
+  setReviewStatus,
+};

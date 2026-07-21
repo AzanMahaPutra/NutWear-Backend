@@ -17,4 +17,11 @@ const updateReviewValidator = [
   body("comment").optional().isString().isLength({ max: 1000 }),
 ];
 
-module.exports = { createReviewValidator, updateReviewValidator };
+// UPDATE — Moderasi Review: validasi body saat Admin sembunyikan/tampilkan review.
+const updateStatusValidator = [
+  body("status")
+    .isIn(["ditampilkan", "disembunyikan"])
+    .withMessage("Status harus 'ditampilkan' atau 'disembunyikan'"),
+];
+
+module.exports = { createReviewValidator, updateReviewValidator, updateStatusValidator };
