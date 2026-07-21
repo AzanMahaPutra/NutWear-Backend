@@ -54,4 +54,49 @@ async function findLogsByVariant(variantId) {
   return data;
 }
 
-module.exports = { decreaseStock, increaseStock, logStock, findLogsByVariant };
+/**
+ * UPDATE — Notifikasi Stok Menipis untuk Admin. `stock_settings` adalah tabel
+ * single-row (id selalu 1) yang menyimpan Batas Minimum Stok.
+ */
+const DEFAULT_MINIMUM_STOCK = 15;
+
+async function getMinimumStock() {
+  const { data, error } = await supabase.from("stock_settings").select("minimum_stock").eq("id", 1).maybeSingle();
+  if (error) throw new AppError(error.message, 500);
+  return data?.minimum_stock ?? DEFAULT_MINIMUM_STOCK;
+}
+
+async function updateMinimumStock(minimumStock) {
+  const { data, error } = await supabase
+    .from("stock_settings")
+    .upsert({ id: 1, minimum_stock: minimumStock, updated_at: new Date().toISOString() })
+    .select("minimum_stock")
+    .single();
+  if (error) throw new AppError(error.message, 500);
+  return data.minimum_stock;
+}
+
+/**
+ * Mengambil seluruh varian dengan stok <= threshold, sekaligus data produk
+ * induknya (nama, slug, status aktif), supaya bisa dikelompokkan per produk
+ * di stockService (lihat getLowStockReport).
+ */
+async function findLowStockVariants(threshold) {
+  const { data, error } = await supabase
+    .from("product_variants")
+    .select("id, ukuran, warna, sku, stok, product_id, products ( id, nama_produk, slug, is_active )")
+    .lte("stok", threshold)
+    .order("stok", { ascending: true });
+  if (error) throw new AppError(error.message, 500);
+  return data;
+}
+
+module.exports = {
+  decreaseStock,
+  increaseStock,
+  logStock,
+  findLogsByVariant,
+  getMinimumStock,
+  updateMinimumStock,
+  findLowStockVariants,
+};

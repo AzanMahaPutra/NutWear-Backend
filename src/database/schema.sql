@@ -244,6 +244,21 @@ create table if not exists unban_requests (
   processed_by uuid references users(id)
 );
 
+-- 19. stock_settings — Notifikasi Stok Menipis untuk Admin, lihat
+-- migrations/20260722_add_stock_settings_and_low_stock.sql. Tabel single-row
+-- (id selalu 1) menyimpan Batas Minimum Stok yang berlaku untuk seluruh sistem
+-- (Dashboard Admin, Manajemen Produk, badge status stok).
+create table if not exists stock_settings (
+  id smallint primary key default 1,
+  minimum_stock integer not null default 15,
+  updated_at timestamp not null default now(),
+  constraint stock_settings_single_row check (id = 1)
+);
+
+insert into stock_settings (id, minimum_stock)
+values (1, 15)
+on conflict (id) do nothing;
+
 -- =====================================================================
 -- Index tambahan untuk query yang sering dipakai (tidak mengubah skema,
 -- hanya optimisasi pencarian/filter yang dibutuhkan Product API).

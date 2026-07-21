@@ -12,4 +12,20 @@ const getLogs = asyncHandler(async (req, res) => {
   return successResponse(res, { message: "Riwayat stok berhasil diambil", data: logs });
 });
 
-module.exports = { adjust, getLogs };
+// --- UPDATE — Notifikasi Stok Menipis untuk Admin ---
+const getSettings = asyncHandler(async (req, res) => {
+  const minimumStock = await stockService.getMinimumStock();
+  return successResponse(res, { message: "Pengaturan batas minimum stok berhasil diambil", data: { minimumStock } });
+});
+
+const updateSettings = asyncHandler(async (req, res) => {
+  const minimumStock = await stockService.updateMinimumStock(req.body.minimumStock);
+  return successResponse(res, { message: "Batas minimum stok berhasil diperbarui", data: { minimumStock } });
+});
+
+const getLowStock = asyncHandler(async (req, res) => {
+  const report = await stockService.getLowStockReport();
+  return successResponse(res, { message: "Daftar stok menipis berhasil diambil", data: report });
+});
+
+module.exports = { adjust, getLogs, getSettings, updateSettings, getLowStock };
