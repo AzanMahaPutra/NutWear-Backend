@@ -385,6 +385,26 @@ async function getAllOrders(filters = {}) {
   return orders.map(toResponse);
 }
 
+/**
+ * UPDATE — Search Order ID (autocomplete): bentuk ringkas untuk dropdown Search Bar
+ * di halaman Pesanan Admin (Order ID, Nama User, Tanggal Pemesanan, Status Pembayaran).
+ */
+function toSearchSuggestion(order) {
+  return {
+    id: order.id,
+    namaUser: order.users?.nama_lengkap ?? null,
+    createdAt: order.created_at,
+    status: order.status,
+  };
+}
+
+async function getOrderSearchSuggestions(term) {
+  const trimmed = (term || "").trim();
+  if (!trimmed) return [];
+  const orders = await orderRepository.searchSuggestions(trimmed);
+  return orders.map(toSearchSuggestion);
+}
+
 async function getOrderById(userId, orderId, isAdmin = false) {
   const order = await orderRepository.findById(orderId);
   if (!order) throw new AppError("Pesanan tidak ditemukan", 404);
@@ -513,6 +533,7 @@ module.exports = {
   continuePayment,
   getOrdersByUser,
   getAllOrders,
+  getOrderSearchSuggestions,
   getOrderById,
   updateOrderStatus,
   cancelOrderByUser,

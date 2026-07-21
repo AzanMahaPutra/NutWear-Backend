@@ -53,8 +53,21 @@ function buildDateRange({ date, month, year }) {
   return null;
 }
 
-/** Menerapkan filter tanggal/bulan/tahun & status ke query builder Supabase. */
-function applyFilters(query, { date, month, year, status }) {
+/**
+ * UPDATE — Search Order ID: cocokkan `search` secara partial & case-insensitive
+ * terhadap Order ID (kolom `id`, uuid). Dicasting ke text (`id::text`) lewat sintaks
+ * casting kolom PostgREST supaya operator ILIKE bisa dipakai pada kolom uuid, dan
+ * memanfaatkan index trigram `orders_id_text_trgm_idx` (lihat migration terkait)
+ * supaya tetap cepat walaupun jumlah pesanan sudah sangat banyak.
+ */
+function applySearch(query, search) {
+  const term = (search || "").trim();
+  if (!term) return query;
+  return query.filter("id::text", "ilike", `%${term}%`);
+}
+
+/** Menerapkan filter tanggal/bulan/tahun, status, & search Order ID ke query builder Supabase. */
+function applyFilters(query, { date, month, year, status, search }) {
   const range = buildDateRange({ date, month, year });
   if (range) {
     query = query.gte("created_at", range.start).lt("created_at", range.end);
@@ -62,6 +75,7 @@ function applyFilters(query, { date, month, year, status }) {
   if (status) {
     query = query.eq("status", status);
   }
+  query = applySearch(query, search);
   return query;
 }
 
@@ -89,6 +103,24 @@ async function countByUser(userId) {
 async function findAll(filters = {}) {
   let query = supabase.from("orders").select(ORDER_SELECT).order("created_at", { ascending: false });
   query = applyFilters(query, filters);
+  const { data, error } = await query;
+  if (error) throw new AppError(error.message, 500);
+  return data;
+}
+
+/**
+ * UPDATE — Search Order ID (autocomplete): daftar Order ID ringkas yang cocok dengan
+ * `term` untuk ditampilkan di dropdown. Sengaja hanya select kolom yang dibutuhkan
+ * (bukan ORDER_SELECT lengkap dengan seluruh relasi) + `limit` kecil supaya tetap
+ * responsif walaupun jumlah pesanan sudah sangat banyak.
+ */
+async function searchSuggestions(term, limit = 8) {
+  let query = supabase
+    .from("orders")
+    .select("id, created_at, status, users ( nama_lengkap )")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  query = applySearch(query, term);
   const { data, error } = await query;
   if (error) throw new AppError(error.message, 500);
   return data;
@@ -201,6 +233,7 @@ module.exports = {
   countByUser,
   findAll,
   findById,
+  searchSuggestions,
   findByMidtransOrderId,
   createOrder,
   createOrderItems,

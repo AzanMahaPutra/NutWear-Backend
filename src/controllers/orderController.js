@@ -34,9 +34,15 @@ const continueMyOrderPayment = asyncHandler(async (req, res) => {
 
 // --- Admin ---
 const getAllOrders = asyncHandler(async (req, res) => {
-  const { date, month, year, status } = req.query;
-  const orders = await orderService.getAllOrders({ date, month, year, status });
+  const { date, month, year, status, search } = req.query;
+  const orders = await orderService.getAllOrders({ date, month, year, status, search });
   return successResponse(res, { message: "Daftar seluruh pesanan berhasil diambil", data: orders });
+});
+
+// UPDATE — Search Order ID: autocomplete dropdown pada Search Bar halaman Pesanan Admin.
+const getOrderSearchSuggestions = asyncHandler(async (req, res) => {
+  const suggestions = await orderService.getOrderSearchSuggestions(req.query.q);
+  return successResponse(res, { message: "Saran pencarian pesanan berhasil diambil", data: suggestions });
 });
 
 const getOrderByIdAdmin = asyncHandler(async (req, res) => {
@@ -70,6 +76,7 @@ module.exports = {
   cancelMyOrder,
   continueMyOrderPayment,
   getAllOrders,
+  getOrderSearchSuggestions,
   getOrderByIdAdmin,
   updateStatus,
   deleteOrder,

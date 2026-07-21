@@ -4,6 +4,7 @@ const {
   checkoutValidator,
   updateOrderStatusValidator,
   orderQueryFilterValidator,
+  orderSearchSuggestionsValidator,
 } = require("../validators/orderValidator");
 const { handleValidation } = require("../middlewares/handleValidation");
 const { requireAuth, requireRole, blockIfBanned } = require("../middlewares/authMiddleware");
@@ -24,6 +25,15 @@ router.post("/my/:id/continue-payment", orderController.continueMyOrderPayment);
 // Admin
 router.get("/", requireRole("admin"), orderQueryFilterValidator, handleValidation, orderController.getAllOrders);
 router.delete("/", requireRole("admin"), orderQueryFilterValidator, handleValidation, orderController.deleteOrdersByFilter);
+// UPDATE — Search Order ID: didaftarkan SEBELUM "/:id" supaya path ini tidak
+// tertangkap sebagai parameter :id oleh route detail pesanan di bawahnya.
+router.get(
+  "/search-suggestions",
+  requireRole("admin"),
+  orderSearchSuggestionsValidator,
+  handleValidation,
+  orderController.getOrderSearchSuggestions
+);
 router.get("/:id", requireRole("admin"), orderController.getOrderByIdAdmin);
 router.delete("/:id", requireRole("admin"), orderController.deleteOrder);
 router.patch("/:id/status", requireRole("admin"), updateOrderStatusValidator, handleValidation, orderController.updateStatus);

@@ -30,12 +30,37 @@ const updateOrderStatusValidator = [
  * Validasi query filter halaman Pesanan Admin (GET /orders) dan tombol "Hapus Semua"
  * (DELETE /orders) — dipakai bersama karena keduanya menerima filter yang sama
  * (tanggal, bulan, tahun, status).
+ *
+ * UPDATE — Search Order ID: `search` opsional (dicocokkan partial/case-insensitive
+ * terhadap Order ID di orderRepository), tetap bisa dikombinasikan dengan filter lain.
  */
 const orderQueryFilterValidator = [
   query("date").optional({ checkFalsy: true }).isISO8601().withMessage("Format tanggal tidak valid (YYYY-MM-DD)"),
   query("month").optional({ checkFalsy: true }).isInt({ min: 1, max: 12 }).withMessage("Bulan tidak valid"),
   query("year").optional({ checkFalsy: true }).isInt({ min: 2000, max: 2100 }).withMessage("Tahun tidak valid"),
   query("status").optional({ checkFalsy: true }).isIn(ORDER_STATUSES).withMessage("Status pesanan tidak valid"),
+  query("search")
+    .optional({ checkFalsy: true })
+    .isString()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Kata kunci pencarian tidak valid"),
 ];
 
-module.exports = { ORDER_STATUSES, checkoutValidator, updateOrderStatusValidator, orderQueryFilterValidator };
+/** Validasi query untuk autocomplete Search Order ID (GET /orders/search-suggestions). */
+const orderSearchSuggestionsValidator = [
+  query("q")
+    .optional({ checkFalsy: true })
+    .isString()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Kata kunci pencarian tidak valid"),
+];
+
+module.exports = {
+  ORDER_STATUSES,
+  checkoutValidator,
+  updateOrderStatusValidator,
+  orderQueryFilterValidator,
+  orderSearchSuggestionsValidator,
+};
