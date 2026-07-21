@@ -28,8 +28,11 @@ async function findByProduct(productId) {
  * Dipakai halaman Review Admin — menyertakan thumbnail & SKU produk supaya
  * admin tahu persis produk mana yang direview, tanpa perlu buka halaman lain.
  * `rating` opsional untuk filter jumlah bintang (1-5).
+ * UPDATE — `productId` opsional untuk filter berdasarkan produk. Filter dilakukan
+ * di query database (bukan di frontend) supaya tetap ringan walau jumlah review
+ * sudah banyak, dan bisa dipakai bersamaan dengan filter `rating` (keduanya AND).
  */
-async function findAll({ rating } = {}) {
+async function findAll({ rating, productId } = {}) {
   let query = supabase
     .from("reviews")
     .select(
@@ -47,6 +50,7 @@ async function findAll({ rating } = {}) {
     .order("created_at", { ascending: false });
 
   if (rating) query = query.eq("rating", rating);
+  if (productId) query = query.eq("product_id", productId);
 
   const { data, error } = await query;
   if (error) throw new AppError(error.message, 500);

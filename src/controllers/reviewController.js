@@ -7,9 +7,12 @@ const getByProduct = asyncHandler(async (req, res) => {
   return successResponse(res, { message: "Ulasan produk berhasil diambil", data: result.items, meta: result.summary });
 });
 
+// UPDATE — Filter Review berdasarkan Produk (Review Admin): terima productId
+// dari query string, dipakai bersamaan dengan filter rating yang sudah ada.
 const getAll = asyncHandler(async (req, res) => {
   const rating = req.query.rating ? Number(req.query.rating) : undefined;
-  const reviews = await reviewService.getAllReviews({ rating });
+  const productId = req.query.productId || undefined;
+  const reviews = await reviewService.getAllReviews({ rating, productId });
   return successResponse(res, { message: "Seluruh ulasan berhasil diambil", data: reviews });
 });
 

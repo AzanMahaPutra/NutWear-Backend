@@ -40,8 +40,10 @@ async function getReviewsByProduct(productId) {
   return { items: reviews.map(toResponse), summary };
 }
 
-async function getAllReviews({ rating } = {}) {
-  const reviews = await reviewRepository.findAll({ rating });
+// UPDATE — Filter Review berdasarkan Produk (Review Admin): `productId` diteruskan
+// ke reviewRepository.findAll supaya filter dilakukan di database, bukan di frontend.
+async function getAllReviews({ rating, productId } = {}) {
+  const reviews = await reviewRepository.findAll({ rating, productId });
   return reviews.map(toResponse);
 }
 
