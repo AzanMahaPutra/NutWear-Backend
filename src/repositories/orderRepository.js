@@ -63,7 +63,7 @@ function buildDateRange({ date, month, year }) {
 function applySearch(query, search) {
   const term = (search || "").trim();
   if (!term) return query;
-  return query.filter("id::text", "ilike", `%${term}%`);
+  return query.ilike("id_text", `%${term}%`);
 }
 
 /** Menerapkan filter tanggal/bulan/tahun, status, & search Order ID ke query builder Supabase. */

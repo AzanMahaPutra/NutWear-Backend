@@ -15,5 +15,12 @@
 
 create extension if not exists pg_trgm;
 
+-- Hapus index lama jika sempat terbuat (yang menggunakan ekspresi)
+drop index if exists orders_id_text_trgm_idx;
+
+-- Tambahkan computed column supaya Supabase PostgREST bisa mengenali tipenya sebagai text
+alter table orders add column if not exists id_text text generated always as (id::text) stored;
+
+-- Buat index di column baru
 create index if not exists orders_id_text_trgm_idx
-  on orders using gin ((id::text) gin_trgm_ops);
+  on orders using gin (id_text gin_trgm_ops);
