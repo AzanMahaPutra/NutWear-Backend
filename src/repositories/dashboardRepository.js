@@ -60,6 +60,12 @@ async function getOrderItemsWithProduct() {
 }
 
 module.exports = {
+  // UPDATE — Laporan Transaksi & Export Excel: PAID_ORDER_STATUSES diekspor supaya
+  // transactionReportRepository bisa memakai definisi "sudah benar-benar dibayar" yang
+  // SAMA PERSIS dengan yang sudah dipakai Pendapatan/Grafik Penjualan Dashboard Admin di
+  // atas, bukan mendefinisikan ulang daftar status secara terpisah (berisiko keduanya
+  // tidak sinkron di kemudian hari). Tidak mengubah perilaku Dashboard sama sekali.
+  PAID_ORDER_STATUSES,
   countProducts,
   countCustomers,
   countOrders,

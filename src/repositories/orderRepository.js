@@ -229,6 +229,12 @@ async function deleteManyByFilter({ date, month, year, status, allowedStatuses =
 
 module.exports = {
   BULK_DELETE_ALLOWED_STATUSES,
+  // UPDATE — Laporan Transaksi & Export Excel: ORDER_SELECT diekspor supaya
+  // transactionReportRepository bisa memakai bentuk query (order_items + payments +
+  // alamat + data user) yang SAMA PERSIS dengan halaman Pesanan Admin, bukan menulis
+  // ulang string select yang panjang secara terpisah. Tidak mengubah perilaku apa pun
+  // di sini — murni penambahan pada module.exports.
+  ORDER_SELECT,
   findAllByUser,
   countByUser,
   findAll,
