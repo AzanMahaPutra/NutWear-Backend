@@ -202,7 +202,7 @@ create table if not exists stock_logs (
 create table if not exists notifications (
   id uuid primary key default uuid_generate_v4(),
   user_id uuid not null references users(id) on delete cascade,
-  type varchar(20) not null, -- 'order_status' | 'new_arrival' | 'promo'
+  type varchar(20) not null, -- 'order_status' | 'new_arrival' | 'promo' | 'account_warning' | 'account_success'
   title varchar(150) not null,
   message text not null,
   link text,

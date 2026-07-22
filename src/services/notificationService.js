@@ -134,6 +134,64 @@ async function notifyPromo(product) {
   });
 }
 
+/**
+ * Notifikasi Akun Dibanned (UPDATE — Notifikasi Banned User) — hanya dikirim
+ * ke user yang bersangkutan, dipanggil dari userService.banUser setelah Admin
+ * berhasil melakukan banned. Kategori "account_warning" dipakai frontend untuk
+ * menampilkan ikon Segitiga Merah (identitas visual berbeda dari notifikasi biasa).
+ * `link` mengarah ke halaman Profile — tombol "Ajukan Permohonan Unban" pada
+ * detail notifikasi (frontend) membuka form yang sudah ada di halaman tersebut.
+ */
+async function notifyAccountBanned(user) {
+  const tanggal = formatDateLong(user.bannedAt) ?? formatDateLong(new Date().toISOString());
+  const reason = user.bannedReason ? `\n\nAlasan:\n"${user.bannedReason}"` : "";
+  await notificationRepository.createForUser(user.id, {
+    type: "account_warning",
+    title: "Akun Anda Telah Diblokir",
+    message:
+      `Akun Anda telah diblokir oleh Admin karena melanggar aturan website.${reason}` +
+      `\n\nTanggal Banned: ${tanggal}. Akun tidak dapat melakukan transaksi (checkout, ulasan, wishlist, keranjang) ` +
+      `selama masih dibanned. Silakan mengajukan permohonan pembukaan blokir akun apabila Anda merasa terjadi ` +
+      `kesalahan atau ingin mengajukan peninjauan kembali.`,
+    link: "/profile",
+    referenceId: user.id,
+  });
+}
+
+/**
+ * Notifikasi Permohonan Unban Disetujui (UPDATE — Notifikasi Banned User) —
+ * dipanggil dari unbanRequestService.approveRequest setelah akun kembali aktif.
+ * Kategori "account_success" dipakai frontend untuk menampilkan ikon Centang Hijau.
+ */
+async function notifyUnbanApproved(userId) {
+  await notificationRepository.createForUser(userId, {
+    type: "account_success",
+    title: "Permohonan Unban Disetujui",
+    message:
+      "Permohonan Anda telah disetujui. Akun Anda telah aktif kembali. " +
+      "Seluruh fitur website kini dapat digunakan kembali.",
+    link: "/profile",
+    referenceId: userId,
+  });
+}
+
+/**
+ * Notifikasi Permohonan Unban Ditolak (UPDATE — Notifikasi Banned User) —
+ * dipanggil dari unbanRequestService.rejectRequest. Tetap memakai kategori
+ * "account_warning" (ikon Segitiga Merah) karena akun tetap berstatus banned.
+ */
+async function notifyUnbanRejected(userId) {
+  await notificationRepository.createForUser(userId, {
+    type: "account_warning",
+    title: "Permohonan Unban Ditolak",
+    message:
+      "Permohonan pembukaan blokir akun belum dapat disetujui. Silakan membaca kembali alasan banned dan Anda " +
+      "dapat mengajukan permohonan baru setelah permohonan sebelumnya selesai diproses.",
+    link: "/profile",
+    referenceId: userId,
+  });
+}
+
 module.exports = {
   getNotifications,
   getUnreadCount,
@@ -142,4 +200,7 @@ module.exports = {
   notifyOrderStatus,
   notifyNewArrival,
   notifyPromo,
+  notifyAccountBanned,
+  notifyUnbanApproved,
+  notifyUnbanRejected,
 };

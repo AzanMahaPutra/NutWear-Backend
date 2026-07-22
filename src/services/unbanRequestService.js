@@ -1,5 +1,6 @@
 const unbanRequestRepository = require("../repositories/unbanRequestRepository");
 const userRepository = require("../repositories/userRepository");
+const notificationService = require("./notificationService");
 const { AppError } = require("../utils/AppError");
 
 function toResponse(request) {
@@ -74,6 +75,16 @@ async function approveRequest(adminId, requestId) {
     status: "disetujui",
     processedBy: adminId,
   });
+
+  // UPDATE — Notifikasi Banned User: dikirim setelah status akun & permohonan
+  // berhasil diperbarui. Kegagalan pengiriman notifikasi tidak menggagalkan
+  // persetujuan permohonan itu sendiri.
+  try {
+    await notificationService.notifyUnbanApproved(request.user_id);
+  } catch {
+    // sengaja tidak melempar ulang.
+  }
+
   return toResponse(updated);
 }
 
@@ -92,6 +103,15 @@ async function rejectRequest(adminId, requestId) {
     status: "ditolak",
     processedBy: adminId,
   });
+
+  // UPDATE — Notifikasi Banned User: kegagalan pengiriman notifikasi tidak
+  // menggagalkan penolakan permohonan itu sendiri.
+  try {
+    await notificationService.notifyUnbanRejected(request.user_id);
+  } catch {
+    // sengaja tidak melempar ulang.
+  }
+
   return toResponse(updated);
 }
 

@@ -1,6 +1,7 @@
 const userRepository = require("../repositories/userRepository");
 const orderRepository = require("../repositories/orderRepository");
 const reviewRepository = require("../repositories/reviewRepository");
+const notificationService = require("./notificationService");
 const { AppError } = require("../utils/AppError");
 
 function toResponse(user) {
@@ -72,7 +73,19 @@ async function banUser(adminId, userId, reason) {
   if (target.status === "banned") throw new AppError("Akun ini sudah berstatus Banned", 400);
 
   const updated = await userRepository.banUser(userId, { reason, bannedBy: adminId });
-  return toResponse(updated);
+  const response = toResponse(updated);
+
+  // UPDATE — Notifikasi Banned User: dikirim setelah banned berhasil disimpan
+  // supaya notifikasi tidak pernah terkirim kalau proses banned di atas gagal.
+  // Kegagalan pengiriman notifikasi tidak boleh menggagalkan aksi banned itu
+  // sendiri (mis. kalau ada masalah sementara di tabel notifications).
+  try {
+    await notificationService.notifyAccountBanned(response);
+  } catch {
+    // sengaja tidak melempar ulang — banned tetap dianggap berhasil.
+  }
+
+  return response;
 }
 
 module.exports = { getProfile, updateProfile, getAllCustomers, banUser, toResponse };
