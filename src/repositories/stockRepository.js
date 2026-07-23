@@ -171,7 +171,21 @@ async function findInventory({ search, status, minimumStock, page = 1, pageSize 
 
   if (search) {
     const term = `%${search}%`;
-    query = query.or(`sku.ilike.${term},products.nama_produk.ilike.${term}`);
+    
+    // Cari product_id yang cocok dengan search (berdasarkan nama_produk)
+    const { data: matchedProducts } = await supabase
+      .from("products")
+      .select("id")
+      .ilike("nama_produk", term);
+      
+    const productIds = matchedProducts?.map(p => p.id) || [];
+    
+    if (productIds.length > 0) {
+      const idsString = `(${productIds.join(",")})`;
+      query = query.or(`sku.ilike.${term},product_id.in.${idsString}`);
+    } else {
+      query = query.ilike("sku", term);
+    }
   }
 
   if (status === "aman") query = query.gt("stok", minimumStock);
