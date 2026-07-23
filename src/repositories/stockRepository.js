@@ -1,7 +1,13 @@
 const { supabase } = require("../config/supabase");
 const { AppError } = require("../utils/AppError");
 
-async function decreaseStock(variantId, quantity) {
+/**
+ * `meta` (opsional, dipakai fitur Riwayat Perubahan Stok — Halaman Inventory
+ * Stock Admin): { adminId } — admin yang melakukan perubahan. Dibiarkan
+ * opsional supaya pengurangan stok otomatis saat checkout (lihat
+ * orderService.js, dipanggil tanpa admin) tetap berjalan seperti sebelumnya.
+ */
+async function decreaseStock(variantId, quantity, meta = {}) {
   const { data: variant, error: fetchError } = await supabase
     .from("product_variants")
     .select("stok")
@@ -12,16 +18,14 @@ async function decreaseStock(variantId, quantity) {
     throw new AppError("Stok tidak mencukupi untuk salah satu produk", 400);
   }
 
-  const { error } = await supabase
-    .from("product_variants")
-    .update({ stok: variant.stok - quantity })
-    .eq("id", variantId);
+  const stokSesudah = variant.stok - quantity;
+  const { error } = await supabase.from("product_variants").update({ stok: stokSesudah }).eq("id", variantId);
   if (error) throw new AppError(error.message, 500);
 
-  return logStock(variantId, -quantity, "out");
+  return logStock(variantId, -quantity, "out", { ...meta, stokSebelum: variant.stok, stokSesudah });
 }
 
-async function increaseStock(variantId, quantity) {
+async function increaseStock(variantId, quantity, meta = {}) {
   const { data: variant, error: fetchError } = await supabase
     .from("product_variants")
     .select("stok")
@@ -29,25 +33,70 @@ async function increaseStock(variantId, quantity) {
     .maybeSingle();
   if (fetchError) throw new AppError(fetchError.message, 500);
 
-  const { error } = await supabase
-    .from("product_variants")
-    .update({ stok: (variant?.stok || 0) + quantity })
-    .eq("id", variantId);
+  const stokSebelum = variant?.stok || 0;
+  const stokSesudah = stokSebelum + quantity;
+  const { error } = await supabase.from("product_variants").update({ stok: stokSesudah }).eq("id", variantId);
   if (error) throw new AppError(error.message, 500);
 
-  return logStock(variantId, quantity, "in");
+  return logStock(variantId, quantity, "in", { ...meta, stokSebelum, stokSesudah });
 }
 
-async function logStock(variantId, quantity, type) {
-  const { error } = await supabase.from("stock_logs").insert({ variant_id: variantId, quantity, type });
+/**
+ * UPDATE — Halaman Inventory Stock Admin: Admin menetapkan langsung nilai
+ * "Stok Baru" (baik lewat input manual maupun tombol Quick Adjustment
+ * +5/+10/-5/-10 yang dihitung di frontend) — beda dari decreaseStock/
+ * increaseStock di atas yang berbasis selisih (dipakai alur checkout).
+ * Selisihnya tetap dicatat ke stock_logs (type 'in'/'out') supaya Riwayat
+ * Perubahan Stok & widget Stok Menipis tetap konsisten dengan satu sumber
+ * data yang sama. Jika stok tidak berubah (stokBaru === stok saat ini),
+ * tidak ada baris log baru yang dibuat.
+ */
+async function setVariantStock(variantId, stokBaru, meta = {}) {
+  const { data: variant, error: fetchError } = await supabase
+    .from("product_variants")
+    .select("stok")
+    .eq("id", variantId)
+    .maybeSingle();
+  if (fetchError) throw new AppError(fetchError.message, 500);
+  if (!variant) throw new AppError("Varian tidak ditemukan", 404);
+
+  const stokSebelum = variant.stok;
+  const selisih = stokBaru - stokSebelum;
+  if (selisih === 0) return { logged: false };
+
+  const { error } = await supabase.from("product_variants").update({ stok: stokBaru }).eq("id", variantId);
+  if (error) throw new AppError(error.message, 500);
+
+  await logStock(variantId, selisih, selisih > 0 ? "in" : "out", { ...meta, stokSebelum, stokSesudah: stokBaru });
+  return { logged: true, stokSebelum, stokSesudah: stokBaru, selisih };
+}
+
+async function logStock(variantId, quantity, type, meta = {}) {
+  const { error } = await supabase.from("stock_logs").insert({
+    variant_id: variantId,
+    quantity,
+    type,
+    admin_id: meta.adminId ?? null,
+    stok_sebelum: meta.stokSebelum ?? null,
+    stok_sesudah: meta.stokSesudah ?? null,
+  });
   if (error) throw new AppError(error.message, 500);
   return true;
 }
 
+/**
+ * UPDATE — Halaman Inventory Stock Admin (Riwayat Perubahan Stok): setiap
+ * baris log disertai nama produk, varian (ukuran/warna), dan nama admin yang
+ * mengubah (kalau ada) supaya modal Riwayat tidak perlu request tambahan.
+ */
 async function findLogsByVariant(variantId) {
   const { data, error } = await supabase
     .from("stock_logs")
-    .select("*")
+    .select(
+      `*,
+      product_variants ( ukuran, warna, sku, products ( nama_produk ) ),
+      users ( nama_lengkap )`
+    )
     .eq("variant_id", variantId)
     .order("created_at", { ascending: false });
   if (error) throw new AppError(error.message, 500);
@@ -91,12 +140,65 @@ async function findLowStockVariants(threshold) {
   return data;
 }
 
+/**
+ * UPDATE — Halaman Inventory Stock Admin.
+ *
+ * Satu baris = satu varian (bukan dikelompokkan per produk) supaya bisa
+ * dipaginasi dengan aman walau satu produk punya puluhan varian — tabel di
+ * frontend tetap menampilkan Nama Produk di tiap baris (lihat dokumen
+ * permintaan bagian "TAMPILAN DATA").
+ *
+ * - `search` mencocokkan Nama Produk ATAU SKU (ILIKE, case-insensitive) lewat
+ *   embedded resource `products!inner` + dot-notation (pola yang sama dengan
+ *   transactionReportRepository.getSummary), supaya cukup satu query tanpa
+ *   perlu mengambil daftar product_id yang cocok terlebih dahulu.
+ * - `status` ('aman' | 'menipis' | 'habis') memfilter berdasarkan `stok` vs
+ *   `minimumStock` yang berlaku (lihat stockService — statusForStock).
+ * - Produk yang sudah dinonaktifkan (is_active = false) tidak ikut
+ *   ditampilkan, konsisten dengan getLowStockReport.
+ * - Pagination & filtering seluruhnya di database (.range()), TIDAK memuat
+ *   seluruh varian ke frontend sesuai poin "Performa" pada dokumen permintaan.
+ */
+async function findInventory({ search, status, minimumStock, page = 1, pageSize = 20 } = {}) {
+  let query = supabase
+    .from("product_variants")
+    .select(
+      `id, ukuran, warna, sku, stok, product_id,
+      products!inner ( id, nama_produk, slug, is_active, product_images ( image_url, warna, sort_order ) )`,
+      { count: "exact" }
+    )
+    .eq("products.is_active", true);
+
+  if (search) {
+    const term = `%${search}%`;
+    query = query.or(`sku.ilike.${term},products.nama_produk.ilike.${term}`);
+  }
+
+  if (status === "aman") query = query.gt("stok", minimumStock);
+  else if (status === "menipis") query = query.gt("stok", 0).lte("stok", minimumStock);
+  else if (status === "habis") query = query.eq("stok", 0);
+
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  query = query
+    .order("nama_produk", { ascending: true, foreignTable: "products" })
+    .order("warna", { ascending: true })
+    .order("ukuran", { ascending: true })
+    .range(from, to);
+
+  const { data, error, count } = await query;
+  if (error) throw new AppError(error.message, 500);
+  return { data, total: count };
+}
+
 module.exports = {
   decreaseStock,
   increaseStock,
+  setVariantStock,
   logStock,
   findLogsByVariant,
   getMinimumStock,
   updateMinimumStock,
   findLowStockVariants,
+  findInventory,
 };

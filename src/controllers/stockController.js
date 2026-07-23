@@ -3,7 +3,7 @@ const { successResponse } = require("../utils/response");
 const { asyncHandler } = require("../utils/asyncHandler");
 
 const adjust = asyncHandler(async (req, res) => {
-  const variant = await stockService.adjustStock(req.params.variantId, req.body);
+  const variant = await stockService.adjustStock(req.params.variantId, req.body, req.user.id);
   return successResponse(res, { message: "Stok berhasil disesuaikan", data: variant });
 });
 
@@ -28,4 +28,16 @@ const getLowStock = asyncHandler(async (req, res) => {
   return successResponse(res, { message: "Daftar stok menipis berhasil diambil", data: report });
 });
 
-module.exports = { adjust, getLogs, getSettings, updateSettings, getLowStock };
+// --- UPDATE — Halaman Inventory Stock Admin ---
+const getInventory = asyncHandler(async (req, res) => {
+  const { search, status, page, pageSize } = req.query;
+  const { items, minimumStock, meta } = await stockService.getInventory({ search, status, page, pageSize });
+  return successResponse(res, { message: "Daftar Inventory Stock berhasil diambil", data: { items, minimumStock }, meta });
+});
+
+const setStock = asyncHandler(async (req, res) => {
+  const variant = await stockService.setInventoryStock(req.params.variantId, req.body.stokBaru, req.user.id);
+  return successResponse(res, { message: "Stok berhasil diperbarui", data: variant });
+});
+
+module.exports = { adjust, getLogs, getSettings, updateSettings, getLowStock, getInventory, setStock };

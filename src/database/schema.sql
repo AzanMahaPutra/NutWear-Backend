@@ -195,7 +195,14 @@ create table if not exists stock_logs (
   variant_id uuid not null references product_variants(id) on delete cascade,
   quantity integer not null,
   type varchar(20) not null, -- 'in' | 'out' | 'adjustment'
-  created_at timestamp not null default now()
+  created_at timestamp not null default now(),
+  -- UPDATE — Halaman Inventory Stock Admin (Riwayat Perubahan Stok), lihat
+  -- migrations/20260724_add_inventory_stock_management.sql. Nullable karena
+  -- baris log lama (mis. pengurangan stok otomatis saat checkout) tidak
+  -- pernah mengisi kolom ini.
+  admin_id uuid references users(id) on delete set null,
+  stok_sebelum integer,
+  stok_sesudah integer
 );
 
 -- 15. notifications (Update 1 — Sistem Notifikasi User)
@@ -267,6 +274,11 @@ create index if not exists idx_products_category_id on products(category_id);
 create index if not exists idx_products_slug on products(slug);
 create index if not exists idx_products_is_new_arrival on products(is_new_arrival);
 create index if not exists idx_product_variants_product_id on product_variants(product_id);
+-- UPDATE — Halaman Inventory Stock Admin, lihat
+-- migrations/20260724_add_inventory_stock_management.sql.
+create index if not exists products_nama_produk_trgm_idx on products using gin (nama_produk gin_trgm_ops);
+create index if not exists product_variants_sku_trgm_idx on product_variants using gin (sku gin_trgm_ops);
+create index if not exists idx_product_variants_stok on product_variants(stok);
 create index if not exists idx_orders_user_id on orders(user_id);
 create index if not exists idx_reviews_product_id on reviews(product_id);
 create index if not exists idx_carts_user_id on carts(user_id);
