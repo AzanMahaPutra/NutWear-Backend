@@ -175,6 +175,42 @@ async function updateStatus(id, status) {
   return data;
 }
 
+/**
+ * UPDATE — Card Produk: Rating & Total Terjual.
+ * Versi batch dari getAverageRating() di atas — dipakai productService supaya
+ * halaman yang menampilkan banyak Card Produk sekaligus (Home, Semua Produk,
+ * Kategori, Pencarian, dst.) cukup satu query untuk seluruh produk yang sedang
+ * ditampilkan, bukan satu query per produk. Aturan sama persis dengan
+ * getAverageRating(): hanya review berstatus "ditampilkan" yang dihitung.
+ * Mengembalikan map { [productId]: { average, count } }, hanya untuk produk
+ * yang benar-benar sudah punya review (produk tanpa review tidak ada key-nya —
+ * pemanggil wajib fallback ke { average: 0, count: 0 }).
+ */
+async function getAverageRatings(productIds) {
+  if (!productIds || productIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("product_id, rating")
+    .in("product_id", productIds)
+    .eq("status", "ditampilkan");
+  if (error) throw new AppError(error.message, 500);
+
+  const totals = {};
+  data.forEach((row) => {
+    const bucket = totals[row.product_id] || { sum: 0, count: 0 };
+    bucket.sum += row.rating;
+    bucket.count += 1;
+    totals[row.product_id] = bucket;
+  });
+
+  const result = {};
+  Object.keys(totals).forEach((productId) => {
+    const { sum, count } = totals[productId];
+    result[productId] = { average: Number((sum / count).toFixed(1)), count };
+  });
+  return result;
+}
+
 module.exports = {
   findByProduct,
   findAll,
@@ -186,5 +222,6 @@ module.exports = {
   update,
   deleteById,
   getAverageRating,
+  getAverageRatings,
   updateStatus,
 };

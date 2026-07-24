@@ -1,4 +1,5 @@
 const productRepository = require("../repositories/productRepository");
+const reviewRepository = require("../repositories/reviewRepository");
 const supabaseStorage = require("../storage/supabaseStorage");
 const notificationService = require("./notificationService");
 const { AppError } = require("../utils/AppError");
@@ -99,10 +100,36 @@ function pairedImageProductToResponse(pair) {
   };
 }
 
+/**
+ * UPDATE — Card Produk: Rating & Total Terjual (menggantikan info gender/Uniseks
+ * yang sebelumnya tampil di Card Produk).
+ * Melengkapi response produk dengan `rating`, `reviewCount`, dan `totalTerjual`
+ * lewat dua batch query (rating dari review yang tampil, total terjual dari
+ * order_items pada order yang statusnya Sudah Dibayar/Selesai) supaya daftar
+ * produk (Home, Semua Produk, Kategori, Pencarian, Detail Produk, dst.) tetap
+ * satu query untuk seluruh produk, bukan per produk. Produk yang belum punya
+ * review/penjualan mendapat rating 0 dan totalTerjual 0.
+ */
+async function attachRatingAndSold(items) {
+  const ids = items.map((item) => item.id);
+  const [ratings, soldCounts] = await Promise.all([
+    reviewRepository.getAverageRatings(ids),
+    productRepository.getSoldCounts(ids),
+  ]);
+
+  return items.map((item) => ({
+    ...item,
+    rating: ratings[item.id]?.average ?? 0,
+    reviewCount: ratings[item.id]?.count ?? 0,
+    totalTerjual: soldCounts[item.id] ?? 0,
+  }));
+}
+
 async function getProducts({ categoryId, search, page, pageSize }) {
   const { data, total } = await productRepository.findAll({ categoryId, search, page, pageSize });
+  const items = await attachRatingAndSold(data.map(toResponse));
   return {
-    items: data.map(toResponse),
+    items,
     meta: { page: Number(page) || 1, pageSize: Number(pageSize) || 12, total },
   };
 }
@@ -110,13 +137,15 @@ async function getProducts({ categoryId, search, page, pageSize }) {
 async function getProductById(id) {
   const product = await productRepository.findById(id);
   if (!product) throw new AppError("Produk tidak ditemukan", 404);
-  return toResponse(product);
+  const [response] = await attachRatingAndSold([toResponse(product)]);
+  return response;
 }
 
 async function getProductBySlug(slug) {
   const product = await productRepository.findBySlug(slug);
   if (!product) throw new AppError("Produk tidak ditemukan", 404);
-  return toResponse(product);
+  const [response] = await attachRatingAndSold([toResponse(product)]);
+  return response;
 }
 
 async function createProduct(payload) {

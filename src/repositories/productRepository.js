@@ -334,6 +334,41 @@ async function deleteImagePair(imageId, pairedProductId) {
   return true;
 }
 
+/**
+ * UPDATE — Card Produk: Rating & Total Terjual.
+ * Status yang dihitung sebagai "benar-benar terjual" untuk Total Terjual pada
+ * Card Produk: HANYA "sudah_dibayar" dan "selesai" (sesuai dokumen permintaan
+ * fitur ini) — TIDAK termasuk diproses/dikemas/dikirim seperti
+ * dashboardRepository.PAID_ORDER_STATUSES (yang dipakai untuk Pendapatan/Grafik
+ * Penjualan Admin, konteks berbeda). Pending/dibatalkan/expired/gagal juga
+ * tidak dihitung.
+ */
+const SOLD_COUNT_STATUSES = ["sudah_dibayar", "selesai"];
+
+/**
+ * Total quantity order_items per produk (hanya order dengan status di atas),
+ * dibatch untuk sekumpulan productId sekaligus supaya daftar Card Produk (Home,
+ * Semua Produk, Kategori, Pencarian, dst.) tidak melakukan satu query per
+ * produk. Mengembalikan map { [productId]: totalQuantity }; produk yang belum
+ * pernah terjual tidak punya key-nya (pemanggil fallback ke 0).
+ */
+async function getSoldCounts(productIds) {
+  if (!productIds || productIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from("order_items")
+    .select("product_id, quantity, orders!inner(status)")
+    .in("product_id", productIds)
+    .in("orders.status", SOLD_COUNT_STATUSES);
+  if (error) throw new AppError(error.message, 500);
+
+  const totals = {};
+  data.forEach((row) => {
+    if (!row.product_id) return;
+    totals[row.product_id] = (totals[row.product_id] || 0) + (row.quantity || 0);
+  });
+  return totals;
+}
+
 module.exports = {
   findAll,
   findById,
@@ -341,6 +376,7 @@ module.exports = {
   create,
   updateById,
   deleteById,
+  getSoldCounts,
   addImage,
   updateImage,
   findImageById,
