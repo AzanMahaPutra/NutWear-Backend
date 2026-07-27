@@ -14,7 +14,10 @@ const productValidator = [
     .isISO8601()
     .withMessage("Tanggal selesai promo tidak valid"),
   body("isNewArrival").optional().isBoolean().withMessage("Status New Arrival tidak valid"),
-  body("gender").trim().isIn(["pria", "wanita", "uniseks"]).withMessage("Gender produk wajib dipilih"),
+  // UPDATE — Gender Produk jadi Multi Select: Admin bisa memilih lebih dari satu
+  // kategori sekaligus (Checkbox), jadi dikirim sebagai array dan minimal satu wajib diisi.
+  body("genders").isArray({ min: 1 }).withMessage("Minimal satu kategori gender wajib dipilih"),
+  body("genders.*").isIn(["pria", "wanita", "uniseks"]).withMessage("Gender produk tidak valid"),
   // UPDATE 5 — Detail Produk dapat Dikelola per Produk. Semua opsional (boleh kosong,
   // frontend menampilkan "Informasi belum tersedia." kalau kosong).
   body("detailInfo").optional({ nullable: true, checkFalsy: true }).isString(),

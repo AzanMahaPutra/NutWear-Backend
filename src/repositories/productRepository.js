@@ -55,7 +55,7 @@ async function create(fields) {
       promo_mulai: fields.promoMulai || null,
       promo_selesai: fields.promoSelesai || null,
       is_new_arrival: fields.isNewArrival ?? false,
-      gender: fields.gender || "uniseks",
+      genders: Array.isArray(fields.genders) && fields.genders.length > 0 ? fields.genders : ["uniseks"],
       deskripsi: fields.deskripsi,
       berat: fields.berat,
       is_active: fields.isActive ?? true,

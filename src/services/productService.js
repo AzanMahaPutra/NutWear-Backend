@@ -6,6 +6,21 @@ const { AppError } = require("../utils/AppError");
 const { slugify } = require("../utils/slugify");
 const promo = require("../utils/promo");
 
+const ALLOWED_GENDERS = ["pria", "wanita", "uniseks"];
+
+/**
+ * UPDATE — Gender Produk jadi Multi Select. Memastikan payload.genders adalah
+ * array berisi minimal satu nilai valid (pria/wanita/uniseks), tanpa duplikat.
+ * Return null kalau tidak valid (dipakai createProduct/updateProduct untuk
+ * menolak simpan produk tanpa kategori gender).
+ */
+function normalizeGenders(genders) {
+  if (!Array.isArray(genders) || genders.length === 0) return null;
+  const unique = Array.from(new Set(genders));
+  if (unique.some((g) => !ALLOWED_GENDERS.includes(g))) return null;
+  return unique;
+}
+
 function toResponse(product) {
   return {
     id: product.id,
@@ -22,7 +37,7 @@ function toResponse(product) {
     // menampilkan status promo yang konsisten dan sudah tervalidasi periode aktifnya.
     isPromoActive: promo.isPromoActive(product),
     isNewArrival: product.is_new_arrival ?? false,
-    gender: product.gender ?? "uniseks",
+    genders: Array.isArray(product.genders) && product.genders.length > 0 ? product.genders : ["uniseks"],
     deskripsi: product.deskripsi,
     berat: product.berat,
     isActive: product.is_active,
@@ -149,8 +164,11 @@ async function getProductBySlug(slug) {
 }
 
 async function createProduct(payload) {
+  const genders = normalizeGenders(payload.genders);
+  if (!genders) throw new AppError("Minimal satu kategori gender wajib dipilih", 400);
+
   const slug = slugify(payload.namaProduk);
-  const product = await productRepository.create({ ...payload, slug });
+  const product = await productRepository.create({ ...payload, genders, slug });
   const response = toResponse(product);
   // Update 1 — Notifikasi New Arrival/Promo saat produk baru langsung dibuat dengan status tsb.
   // Jangan sampai kegagalan pengiriman notifikasi menggagalkan pembuatan produk itu sendiri.
@@ -161,6 +179,13 @@ async function createProduct(payload) {
 
 async function updateProduct(id, payload) {
   const before = await getProductById(id);
+
+  let normalizedGenders;
+  if (payload.genders !== undefined) {
+    normalizedGenders = normalizeGenders(payload.genders);
+    if (!normalizedGenders) throw new AppError("Minimal satu kategori gender wajib dipilih", 400);
+  }
+
   const fields = {
     ...(payload.namaProduk && { nama_produk: payload.namaProduk, slug: slugify(payload.namaProduk) }),
     ...(payload.categoriId && { category_id: payload.categoriId }),
@@ -173,7 +198,7 @@ async function updateProduct(id, payload) {
     ...(payload.promoMulai !== undefined && { promo_mulai: payload.promoMulai || null }),
     ...(payload.promoSelesai !== undefined && { promo_selesai: payload.promoSelesai || null }),
     ...(typeof payload.isNewArrival === "boolean" && { is_new_arrival: payload.isNewArrival }),
-    ...(payload.gender && { gender: payload.gender }),
+    ...(normalizedGenders && { genders: normalizedGenders }),
     ...(payload.deskripsi && { deskripsi: payload.deskripsi }),
     ...(payload.berat !== undefined && { berat: payload.berat }),
     ...(typeof payload.isActive === "boolean" && { is_active: payload.isActive }),
