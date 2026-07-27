@@ -5,8 +5,16 @@ const { AppError } = require("../utils/AppError");
 const supabaseStorage = require("../storage/supabaseStorage");
 
 const getAll = asyncHandler(async (req, res) => {
-  const { categoryId, search, page, pageSize } = req.query;
-  const result = await productService.getProducts({ categoryId, search, page, pageSize });
+  const { categoryId, search, page, pageSize, recommended } = req.query;
+  // BUG FIX — Produk Rekomendasi: ?recommended=true dipakai Beranda supaya section
+  // tsb benar-benar difilter di query, bukan menampilkan seluruh katalog produk.
+  const result = await productService.getProducts({
+    categoryId,
+    search,
+    page,
+    pageSize,
+    recommended: recommended === "true" || recommended === true,
+  });
   return successResponse(res, { message: "Daftar produk berhasil diambil", data: result.items, meta: result.meta });
 });
 

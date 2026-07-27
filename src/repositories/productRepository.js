@@ -12,11 +12,15 @@ const PRODUCT_SELECT = `
  * Repository products — query utama menyertakan relasi product_images & product_variants
  * sekaligus (satu round-trip) supaya frontend Detail Produk tidak perlu N+1 request.
  */
-async function findAll({ categoryId, search, page = 1, pageSize = 12 } = {}) {
+async function findAll({ categoryId, search, page = 1, pageSize = 12, recommended } = {}) {
   let query = supabase.from("products").select(PRODUCT_SELECT, { count: "exact" }).eq("is_active", true);
 
   if (categoryId) query = query.eq("category_id", categoryId);
   if (search) query = query.ilike("nama_produk", `%${search}%`);
+  // BUG FIX — Produk Rekomendasi: saat recommended=true diminta, filter benar-benar
+  // dilakukan di query (bukan di frontend), supaya section Produk Rekomendasi di
+  // Beranda hanya menerima produk yang memang ditandai Admin, bukan seluruh katalog.
+  if (recommended) query = query.eq("is_recommended", true);
 
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -55,6 +59,7 @@ async function create(fields) {
       promo_mulai: fields.promoMulai || null,
       promo_selesai: fields.promoSelesai || null,
       is_new_arrival: fields.isNewArrival ?? false,
+      is_recommended: fields.isRecommended ?? false,
       genders: Array.isArray(fields.genders) && fields.genders.length > 0 ? fields.genders : ["uniseks"],
       deskripsi: fields.deskripsi,
       berat: fields.berat,

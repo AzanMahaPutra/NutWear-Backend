@@ -56,6 +56,9 @@ create table if not exists products (
   promo_mulai date, -- Periode promo (opsional), lihat migrations/20260709_add_notifications_and_promo_period.sql
   promo_selesai date,
   is_new_arrival boolean not null default false,
+  -- Flag Produk Rekomendasi (lihat migrations/20260727_add_product_is_recommended.sql) —
+  -- section "Produk Rekomendasi" di Beranda hanya menampilkan produk dengan nilai true.
+  is_recommended boolean not null default false,
   deskripsi text,
   berat integer not null default 0,
   is_active boolean not null default true,
@@ -273,6 +276,7 @@ on conflict (id) do nothing;
 create index if not exists idx_products_category_id on products(category_id);
 create index if not exists idx_products_slug on products(slug);
 create index if not exists idx_products_is_new_arrival on products(is_new_arrival);
+create index if not exists idx_products_is_recommended on products(is_recommended);
 create index if not exists idx_product_variants_product_id on product_variants(product_id);
 -- UPDATE — Halaman Inventory Stock Admin, lihat
 -- migrations/20260724_add_inventory_stock_management.sql.

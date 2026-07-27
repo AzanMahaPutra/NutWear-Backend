@@ -14,6 +14,8 @@ const productValidator = [
     .isISO8601()
     .withMessage("Tanggal selesai promo tidak valid"),
   body("isNewArrival").optional().isBoolean().withMessage("Status New Arrival tidak valid"),
+  // BUG FIX — Produk Rekomendasi: flag opsional yang ditandai Admin di Form Produk.
+  body("isRecommended").optional().isBoolean().withMessage("Status Produk Rekomendasi tidak valid"),
   // UPDATE — Gender Produk jadi Multi Select: Admin bisa memilih lebih dari satu
   // kategori sekaligus (Checkbox), jadi dikirim sebagai array dan minimal satu wajib diisi.
   body("genders").isArray({ min: 1 }).withMessage("Minimal satu kategori gender wajib dipilih"),
