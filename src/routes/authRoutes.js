@@ -1,6 +1,11 @@
 const express = require("express");
 const authController = require("../controllers/authController");
-const { registerValidator, loginValidator, forgotPasswordValidator } = require("../validators/authValidator");
+const {
+  registerValidator,
+  loginValidator,
+  forgotPasswordValidator,
+  googleLoginValidator,
+} = require("../validators/authValidator");
 const { handleValidation } = require("../middlewares/handleValidation");
 const { requireAuth } = require("../middlewares/authMiddleware");
 const { authLimiter } = require("../middlewares/rateLimiter");
@@ -9,6 +14,12 @@ const router = express.Router();
 
 router.post("/register", authLimiter, registerValidator, handleValidation, authController.register);
 router.post("/login", authLimiter, loginValidator, handleValidation, authController.login);
+// UPDATE — Login dengan Google: OAuth-nya sendiri (redirect ke Google, tukar
+// code jadi session) sepenuhnya terjadi di browser lewat Supabase Auth
+// (lihat frontend/app/auth/callback). Endpoint ini dipanggil frontend SETELAH
+// itu, hanya untuk sinkronisasi baris profil `users` & mengisi cookie refresh
+// token — sama seperti /login, bukan endpoint OAuth redirect itu sendiri.
+router.post("/google", authLimiter, googleLoginValidator, handleValidation, authController.googleLogin);
 router.post("/refresh", authController.refresh);
 router.post("/logout", authController.logout);
 router.get("/me", requireAuth, authController.me);

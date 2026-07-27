@@ -34,6 +34,27 @@ const login = asyncHandler(async (req, res) => {
   });
 });
 
+// UPDATE — Login dengan Google: dipanggil frontend setelah OAuth redirect ke
+// Google selesai & session Supabase Auth sudah terbentuk di browser (lihat
+// frontend/app/auth/callback/page.tsx). `accessToken`/`refreshToken` di body
+// adalah pasangan token yang sudah diterbitkan Supabase Auth untuk sesi itu.
+const googleLogin = asyncHandler(async (req, res) => {
+  const { accessToken, refreshToken } = req.body;
+  const { user } = await authService.loginWithGoogle(accessToken);
+
+  // Sama seperti login(): refresh token disimpan sebagai cookie httpOnly supaya
+  // /auth/refresh (dipakai AuthProvider saat reload halaman) bekerja dengan cara
+  // yang identik untuk Login Google maupun Login Email & Password.
+  if (refreshToken) {
+    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, getRefreshCookieOptions());
+  }
+
+  return successResponse(res, {
+    message: "Login dengan Google berhasil",
+    data: { user, accessToken },
+  });
+});
+
 const refresh = asyncHandler(async (req, res) => {
   const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
   const { accessToken, refreshToken: newRefreshToken } = await authService.refresh(refreshToken);
@@ -77,4 +98,4 @@ const forgotPassword = asyncHandler(async (req, res) => {
 // frontend/services/authService.ts. Ini juga persis skema resmi yang
 // direkomendasikan dokumentasi Supabase Auth untuk alur Reset Password.
 
-module.exports = { register, login, refresh, logout, me, forgotPassword };
+module.exports = { register, login, googleLogin, refresh, logout, me, forgotPassword };

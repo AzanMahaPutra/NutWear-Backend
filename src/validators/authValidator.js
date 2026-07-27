@@ -21,4 +21,13 @@ const forgotPasswordValidator = [body("email").trim().isEmail().withMessage("For
 // di backend (lihat authRoutes.js), penggantian password sekarang dilakukan
 // langsung di frontend lewat Supabase Auth.
 
-module.exports = { registerValidator, loginValidator, forgotPasswordValidator };
+// UPDATE — Login dengan Google: `accessToken` adalah access token Supabase Auth
+// hasil OAuth yang sudah selesai diproses di browser (lihat authService.loginWithGoogle).
+// `refreshToken` opsional — kalau ada, dipakai backend untuk mengisi cookie
+// httpOnly yang sama dengan Login Email & Password (lihat authController.js).
+const googleLoginValidator = [
+  body("accessToken").trim().notEmpty().withMessage("Token Login Google wajib diisi"),
+  body("refreshToken").optional().isString(),
+];
+
+module.exports = { registerValidator, loginValidator, forgotPasswordValidator, googleLoginValidator };

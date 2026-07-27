@@ -92,12 +92,19 @@ async function findAllCustomerIds() {
  * — lihat authService.register), bukan digenerate di sini, supaya `users.id`
  * selalu identik dengan `auth.users.id`.
  */
-async function create({ id, namaLengkap, email, noHp, role = "customer" }) {
-  const { data, error } = await supabase
-    .from("users")
-    .insert({ id, nama_lengkap: namaLengkap, email, no_hp: noHp, role })
-    .select()
-    .single();
+/**
+ * `provider`/`avatarUrl` opsional — hanya dipakai saat akun dibuat dari Login
+ * Google pertama kali (lihat authService.loginWithGoogle). Register Email &
+ * Password biasa tidak mengirim keduanya, sehingga tetap memakai default
+ * kolom `provider = 'email'` dan `avatar_url = null` (lihat migration
+ * 20260727_add_user_google_oauth_fields.sql) — Register lama tidak berubah.
+ */
+async function create({ id, namaLengkap, email, noHp, role = "customer", provider, avatarUrl }) {
+  const payload = { id, nama_lengkap: namaLengkap, email, no_hp: noHp, role };
+  if (provider) payload.provider = provider;
+  if (avatarUrl) payload.avatar_url = avatarUrl;
+
+  const { data, error } = await supabase.from("users").insert(payload).select().single();
   if (error) throw new AppError(error.message, 500);
   return data;
 }

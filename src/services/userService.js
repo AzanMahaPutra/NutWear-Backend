@@ -16,6 +16,8 @@ function toResponse(user) {
     status: user.status ?? "aktif",
     bannedReason: user.banned_reason ?? null,
     bannedAt: user.banned_at ?? null,
+    // UPDATE — Login dengan Google: foto profil Google (kalau ada), lihat authService.js.
+    avatarUrl: user.avatar_url ?? null,
   };
 }
 

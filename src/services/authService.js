@@ -29,6 +29,9 @@ function toSafeUser(profile) {
     // login berhasil (user yang dibanned tetap boleh login, lihat authMiddleware).
     status: profile.status ?? "aktif",
     bannedReason: profile.banned_reason ?? null,
+    // UPDATE — Login dengan Google: foto profil Google (kalau ada). null untuk
+    // akun yang dibuat lewat Register Email & Password biasa.
+    avatarUrl: profile.avatar_url ?? null,
   };
 }
 
@@ -172,4 +175,73 @@ async function requestPasswordReset(email) {
   }
 }
 
-module.exports = { register, login, refresh, toSafeUser, ensureProfile, requestPasswordReset };
+/**
+ * UPDATE — Login dengan Google: dipanggil setelah frontend menyelesaikan OAuth
+ * flow lewat Supabase Auth LANGSUNG di browser (`supabase.auth.signInWithOAuth`,
+ * lihat frontend/services/authService.ts & app/auth/callback/page.tsx). Kita
+ * TIDAK pernah menyentuh Google API secara langsung di backend — `accessToken`
+ * di sini adalah access token SUPABASE (bukan token Google), diverifikasi
+ * dengan cara yang SAMA persis seperti authMiddleware.requireAuth
+ * (`supabase.auth.getUser`), supaya session yang dihasilkan Login Google
+ * otomatis kompatibel dengan seluruh sistem Login Email & Password yang sudah
+ * ada (satu-satunya sumber kebenaran session tetap Supabase Auth — tidak ada
+ * sistem session kedua yang dibuat khusus untuk Google).
+ *
+ * PENAUTAN AKUN: kalau email Google ini sudah pernah dipakai Register lewat
+ * Email & Password (dan emailnya sudah terverifikasi — selalu true di sini
+ * karena authService.register memakai `email_confirm: true`), Supabase Auth
+ * SENDIRI yang otomatis menautkan identitas Google tsb ke `auth.users.id`
+ * yang SAMA (fitur bawaan "Automatic Identity Linking" Supabase Auth, aktif
+ * secara default, tidak perlu konfigurasi tambahan). Karena itu, lookup baris
+ * profil di bawah ini cukup berdasarkan `authUser.id` — kalau baris profil
+ * lama sudah ada (dari Register Email & Password), baris itu otomatis
+ * ditemukan & dipakai apa adanya (role, status, data lain tidak disentuh),
+ * TIDAK PERNAH membuat baris/akun kedua.
+ */
+async function loginWithGoogle(accessToken) {
+  if (!accessToken) {
+    throw new AppError("Token Login Google tidak ditemukan", 401);
+  }
+
+  const { data, error } = await supabase.auth.getUser(accessToken);
+  if (error || !data.user) {
+    throw new AppError("Sesi Login Google tidak valid atau sudah kedaluwarsa", 401);
+  }
+  const authUser = data.user;
+
+  if (!authUser.email) {
+    throw new AppError("Akun Google tidak memiliki email dan tidak dapat dipakai untuk login", 400);
+  }
+
+  let profile = await userRepository.findById(authUser.id);
+
+  if (!profile) {
+    logger.info("[authService] Membuat akun baru dari Login Google", {
+      userId: authUser.id,
+      email: authUser.email,
+    });
+    profile = await userRepository.create({
+      id: authUser.id,
+      namaLengkap: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email,
+      email: authUser.email,
+      noHp: null,
+      role: "customer",
+      provider: "google",
+      avatarUrl: authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || null,
+    });
+  }
+
+  // UPDATE — Login Google & Banned User: BERBEDA dari Login Email & Password
+  // (yang tetap mengizinkan user banned login lalu dibatasi per-aksi lewat
+  // authMiddleware.blockIfBanned), permintaan fitur ini SECARA KHUSUS
+  // mewajibkan Login Google ditolak total untuk akun banned. Perbedaan ini
+  // disengaja — lihat CHANGELOG.md.
+  if (profile.status === "banned") {
+    const reason = profile.banned_reason ? ` Alasan: ${profile.banned_reason}.` : "";
+    throw new AppError(`Akun Anda sedang dibanned dan tidak dapat login menggunakan Google.${reason}`, 403);
+  }
+
+  return { user: toSafeUser(profile) };
+}
+
+module.exports = { register, login, refresh, toSafeUser, ensureProfile, requestPasswordReset, loginWithGoogle };
