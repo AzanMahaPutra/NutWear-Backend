@@ -12,7 +12,7 @@ const PRODUCT_SELECT = `
  * Repository products — query utama menyertakan relasi product_images & product_variants
  * sekaligus (satu round-trip) supaya frontend Detail Produk tidak perlu N+1 request.
  */
-async function findAll({ categoryId, search, page = 1, pageSize = 12, recommended } = {}) {
+async function findAll({ categoryId, search, page = 1, pageSize = 12, recommended, newArrival } = {}) {
   let query = supabase.from("products").select(PRODUCT_SELECT, { count: "exact" }).eq("is_active", true);
 
   if (categoryId) query = query.eq("category_id", categoryId);
@@ -21,6 +21,7 @@ async function findAll({ categoryId, search, page = 1, pageSize = 12, recommende
   // dilakukan di query (bukan di frontend), supaya section Produk Rekomendasi di
   // Beranda hanya menerima produk yang memang ditandai Admin, bukan seluruh katalog.
   if (recommended) query = query.eq("is_recommended", true);
+  if (newArrival) query = query.eq("is_new_arrival", true);
 
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;

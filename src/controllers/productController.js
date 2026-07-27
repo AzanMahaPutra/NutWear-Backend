@@ -5,7 +5,7 @@ const { AppError } = require("../utils/AppError");
 const supabaseStorage = require("../storage/supabaseStorage");
 
 const getAll = asyncHandler(async (req, res) => {
-  const { categoryId, search, page, pageSize, recommended } = req.query;
+  const { categoryId, search, page, pageSize, recommended, newArrival } = req.query;
   // BUG FIX — Produk Rekomendasi: ?recommended=true dipakai Beranda supaya section
   // tsb benar-benar difilter di query, bukan menampilkan seluruh katalog produk.
   const result = await productService.getProducts({
@@ -14,6 +14,7 @@ const getAll = asyncHandler(async (req, res) => {
     page,
     pageSize,
     recommended: recommended === "true" || recommended === true,
+    newArrival: newArrival === "true" || newArrival === true,
   });
   return successResponse(res, { message: "Daftar produk berhasil diambil", data: result.items, meta: result.meta });
 });

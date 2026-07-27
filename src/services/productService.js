@@ -143,8 +143,8 @@ async function attachRatingAndSold(items) {
   }));
 }
 
-async function getProducts({ categoryId, search, page, pageSize, recommended }) {
-  const { data, total } = await productRepository.findAll({ categoryId, search, page, pageSize, recommended });
+async function getProducts({ categoryId, search, page, pageSize, recommended, newArrival }) {
+  const { data, total } = await productRepository.findAll({ categoryId, search, page, pageSize, recommended, newArrival });
   const items = await attachRatingAndSold(data.map(toResponse));
   return {
     items,
