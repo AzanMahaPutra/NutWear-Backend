@@ -172,7 +172,11 @@ async function createProduct(payload) {
   const response = toResponse(product);
   // Update 1 — Notifikasi New Arrival/Promo saat produk baru langsung dibuat dengan status tsb.
   // Jangan sampai kegagalan pengiriman notifikasi menggagalkan pembuatan produk itu sendiri.
-  if (response.isNewArrival) notificationService.notifyNewArrival(response).catch(() => {});
+  if (response.isNewArrival) {
+    notificationService
+      .notifyNewArrival(response)
+      .catch((err) => console.error(`[createProduct] Gagal mengirim notifikasi New Arrival untuk produk ${response.id}:`, err));
+  }
   if (response.hargaPromo != null) notificationService.notifyPromo(response).catch(() => {});
   return response;
 }
@@ -214,7 +218,9 @@ async function updateProduct(id, payload) {
   // Update 1 — Notifikasi New Arrival: hanya saat transisi false -> true, supaya tidak
   // mengirim ulang notifikasi yang sama di setiap kali admin menyimpan perubahan lain.
   if (!before.isNewArrival && response.isNewArrival) {
-    notificationService.notifyNewArrival(response).catch(() => {});
+    notificationService
+      .notifyNewArrival(response)
+      .catch((err) => console.error(`[updateProduct] Gagal mengirim notifikasi New Arrival untuk produk ${response.id}:`, err));
   }
 
   // Update 1 — Notifikasi Promo Produk: hanya saat harga promo/periode promo benar-benar
