@@ -13,6 +13,10 @@ const uploadImage = upload.single("image");
 router.get("/", categoryController.getAll);
 router.get("/:id", categoryController.getById);
 
+// Admin — urutan kategori (drag & drop di Category Admin), konsepnya sama
+// seperti /banners/reorder yang sudah ada di project.
+router.patch("/reorder", adminOnly, categoryController.reorder);
+
 // Admin — create & update memakai multipart/form-data supaya bisa upload gambar
 router.post("/", adminOnly, uploadImage, categoryValidator, handleValidation, categoryController.create);
 router.put("/:id", adminOnly, uploadImage, categoryValidator, handleValidation, categoryController.update);

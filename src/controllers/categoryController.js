@@ -1,6 +1,7 @@
 const categoryService = require("../services/categoryService");
 const { successResponse } = require("../utils/response");
 const { asyncHandler } = require("../utils/asyncHandler");
+const { AppError } = require("../utils/AppError");
 
 const getAll = asyncHandler(async (req, res) => {
   const categories = await categoryService.getAllCategories();
@@ -28,4 +29,12 @@ const remove = asyncHandler(async (req, res) => {
   return successResponse(res, { message: "Kategori berhasil dihapus" });
 });
 
-module.exports = { getAll, getById, create, update, remove };
+const reorder = asyncHandler(async (req, res) => {
+  const { order } = req.body;
+  if (!Array.isArray(order)) throw new AppError("Format urutan kategori tidak valid", 400);
+
+  const categories = await categoryService.reorderCategories(order);
+  return successResponse(res, { message: "Urutan kategori berhasil diperbarui", data: categories });
+});
+
+module.exports = { getAll, getById, create, update, remove, reorder };

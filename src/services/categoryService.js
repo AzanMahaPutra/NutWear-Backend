@@ -7,6 +7,7 @@ function toResponse(category) {
     id: category.id,
     namaKategori: category.nama_kategori,
     imageUrl: category.image_url ?? null,
+    sortOrder: category.sort_order ?? 0,
     createdAt: category.created_at,
   };
 }
@@ -29,7 +30,10 @@ async function getCategoryRawById(id) {
 }
 
 async function createCategory({ namaKategori }, imageFile) {
-  const fields = { nama_kategori: namaKategori };
+  // Kategori baru ditempatkan di urutan paling akhir (sort_order tertinggi + 1)
+  // supaya tidak mengacaukan urutan yang sudah diatur Admin lewat drag & drop.
+  const nextSortOrder = await categoryRepository.getNextSortOrder();
+  const fields = { nama_kategori: namaKategori, sort_order: nextSortOrder };
 
   if (imageFile) {
     const uploaded = await supabaseStorage.uploadImage(imageFile.buffer, imageFile.mimetype, "categories");
@@ -73,4 +77,26 @@ async function deleteCategory(id) {
   return true;
 }
 
-module.exports = { getAllCategories, getCategoryById, createCategory, updateCategory, deleteCategory };
+/**
+ * Menyimpan urutan kategori baru hasil drag & drop di Category Admin.
+ * `order` berisi seluruh kategori beserta sort_order barunya (dihitung dari
+ * posisi di UI setelah di-drop). Konsepnya sama seperti reorderBanners yang
+ * sudah ada di project (lihat services/bannerService.js).
+ */
+async function reorderCategories(order) {
+  await Promise.all(
+    order
+      .filter((item) => item && item.id)
+      .map((item) => categoryRepository.updateById(item.id, { sort_order: Number(item.sortOrder) }))
+  );
+  return getAllCategories();
+}
+
+module.exports = {
+  getAllCategories,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  reorderCategories,
+};
