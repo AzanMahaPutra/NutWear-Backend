@@ -420,9 +420,49 @@ async function removeProductImagePair(imageId, pairedProductId) {
   return getProductImagePairs(imageId);
 }
 
+/**
+ * BUG FIX — Produk Terlaris (Beranda).
+ * Sebelumnya section "Produk Terlaris" di Beranda memakai ulang daftar `allProducts`
+ * yang sama dengan halaman "Semua Produk" (urutan created_at, tanpa filter penjualan
+ * sama sekali), sehingga terlihat identik dan fitur Produk Terlaris tidak berfungsi.
+ *
+ * Sekarang: ambil id produk terlaris dari agregasi order_items (limit ditentukan di
+ * database via slice setelah sort, bukan mengambil seluruh produk lalu menghitung di
+ * frontend), lalu ambil detail produknya dan susun ulang sesuai urutan penjualan.
+ *
+ * Urutan: total penjualan terbesar -> terkecil. Jika sama, produk dengan transaksi
+ * PALING BARU tampil lebih dulu (pembeda konsisten, bukan random/urutan database).
+ * Produk yang sudah non-aktif otomatis tidak ikut tampil (disaring di
+ * productRepository.findByIds). Kalau belum ada transaksi valid sama sekali, hasilnya
+ * array kosong — pemanggil (Beranda) menampilkan placeholder, BUKAN fallback ke seluruh
+ * katalog produk.
+ */
+async function getBestsellerProducts(limit = 12) {
+  const aggregates = await productRepository.getBestsellerAggregates();
+  if (aggregates.length === 0) return { items: [] };
+
+  const sorted = aggregates
+    .sort((a, b) => {
+      if (b.totalTerjual !== a.totalTerjual) return b.totalTerjual - a.totalTerjual;
+      const aTime = a.lastSoldAt ? new Date(a.lastSoldAt).getTime() : 0;
+      const bTime = b.lastSoldAt ? new Date(b.lastSoldAt).getTime() : 0;
+      return bTime - aTime;
+    })
+    .slice(0, limit);
+
+  const products = await productRepository.findByIds(sorted.map((a) => a.productId));
+  const productById = new Map(products.map((p) => [p.id, p]));
+
+  const orderedProducts = sorted.map((a) => productById.get(a.productId)).filter(Boolean).map(toResponse);
+
+  const items = await attachRatingAndSold(orderedProducts);
+  return { items };
+}
+
 module.exports = {
   toResponse,
   getProducts,
+  getBestsellerProducts,
   getProductById,
   getProductBySlug,
   createProduct,

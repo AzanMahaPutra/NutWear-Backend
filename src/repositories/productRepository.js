@@ -375,14 +375,63 @@ async function getSoldCounts(productIds) {
   return totals;
 }
 
+/**
+ * BUG FIX — Produk Terlaris (Beranda).
+ * Mengagregasi order_items -> orders (hanya status di SOLD_COUNT_STATUSES, SAMA PERSIS
+ * dengan definisi "Total Terjual" yang sudah dipakai Card Produk lewat getSoldCounts di
+ * atas, supaya angka yang dipakai untuk MENGURUTKAN Produk Terlaris konsisten dengan
+ * angka "Terjual" yang tampil di Card Produk-nya sendiri) menjadi total quantity per
+ * produk, sekaligus tanggal transaksi terakhir per produk (dipakai sebagai pembeda saat
+ * total penjualan sama, lihat productService.getBestsellerProducts).
+ *
+ * Query ini dilakukan sekali di database (bukan per produk, bukan di frontend) supaya
+ * tetap efisien walau jumlah transaksi sangat banyak.
+ */
+async function getBestsellerAggregates() {
+  const { data, error } = await supabase
+    .from("order_items")
+    .select("product_id, quantity, orders!inner(status, created_at)")
+    .in("orders.status", SOLD_COUNT_STATUSES);
+  if (error) throw new AppError(error.message, 500);
+
+  const totals = new Map();
+  data.forEach((row) => {
+    if (!row.product_id) return;
+    const existing = totals.get(row.product_id) || { productId: row.product_id, totalTerjual: 0, lastSoldAt: null };
+    existing.totalTerjual += row.quantity || 0;
+    const orderDate = row.orders?.created_at ?? null;
+    if (orderDate && (!existing.lastSoldAt || orderDate > existing.lastSoldAt)) {
+      existing.lastSoldAt = orderDate;
+    }
+    totals.set(row.product_id, existing);
+  });
+
+  return Array.from(totals.values());
+}
+
+/**
+ * Mengambil produk aktif berdasarkan daftar id (dipakai setelah id produk terlaris
+ * ditentukan dari getBestsellerAggregates). Urutan hasil TIDAK dijamin sama dengan
+ * urutan `ids` (pemanggil harus mengurutkan ulang sendiri), dan produk yang sudah
+ * tidak aktif (is_active = false) otomatis tidak ikut kembali.
+ */
+async function findByIds(ids) {
+  if (!ids || ids.length === 0) return [];
+  const { data, error } = await supabase.from("products").select(PRODUCT_SELECT).eq("is_active", true).in("id", ids);
+  if (error) throw new AppError(error.message, 500);
+  return data;
+}
+
 module.exports = {
   findAll,
   findById,
   findBySlug,
+  findByIds,
   create,
   updateById,
   deleteById,
   getSoldCounts,
+  getBestsellerAggregates,
   addImage,
   updateImage,
   findImageById,

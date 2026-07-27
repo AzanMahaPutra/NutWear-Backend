@@ -19,6 +19,15 @@ const getAll = asyncHandler(async (req, res) => {
   return successResponse(res, { message: "Daftar produk berhasil diambil", data: result.items, meta: result.meta });
 });
 
+// BUG FIX — Produk Terlaris (Beranda): endpoint publik baru, diagregasi dari transaksi
+// yang berhasil di backend (lihat productService.getBestsellerProducts), bukan seluruh
+// katalog produk.
+const getBestsellers = asyncHandler(async (req, res) => {
+  const { limit } = req.query;
+  const result = await productService.getBestsellerProducts(Number(limit) || 12);
+  return successResponse(res, { message: "Daftar produk terlaris berhasil diambil", data: result.items });
+});
+
 const getById = asyncHandler(async (req, res) => {
   const product = await productService.getProductById(req.params.id);
   return successResponse(res, { message: "Detail produk berhasil diambil", data: product });
@@ -157,6 +166,7 @@ const removeImagePair = asyncHandler(async (req, res) => {
 
 module.exports = {
   getAll,
+  getBestsellers,
   getById,
   getBySlug,
   create,

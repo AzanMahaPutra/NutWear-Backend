@@ -18,6 +18,9 @@ const adminOnly = [requireAuth, requireRole("admin")];
 
 // Publik — dipakai halaman Shop & Detail Produk
 router.get("/", productController.getAll);
+// BUG FIX — Produk Terlaris (Beranda). Didaftarkan SEBELUM route "/:id" di bawah,
+// supaya "/bestsellers" tidak tertangkap sebagai parameter :id.
+router.get("/bestsellers", productController.getBestsellers);
 router.get("/slug/:slug", productController.getBySlug);
 router.get("/:id/pairs", productController.getPairs);
 
