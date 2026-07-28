@@ -8,10 +8,14 @@ const { AppError } = require("../utils/AppError");
  * ulasan. Relasinya lewat reviews.order_item_id -> order_items(id), jadi
  * bernilai null untuk ulasan lama yang belum punya order_item_id.
  */
+// UPDATE — Balasan Review oleh Admin: `admin_replier` (alias, lewat FK
+// reviews.admin_reply_by -> users.id) menyertakan nama Admin yang membalas,
+// dipakai untuk menampilkan "Balasan dari NutWear Official" pada card balasan.
 const REVIEW_SELECT_WITH_PURCHASE = `
   *,
-  users ( nama_lengkap ),
-  order_items ( product_name, variant_ukuran, variant_warna, quantity )
+  users!reviews_user_id_fkey ( nama_lengkap ),
+  order_items ( product_name, variant_ukuran, variant_warna, quantity ),
+  admin_replier:users!reviews_admin_reply_by_fkey ( nama_lengkap )
 `;
 
 // UPDATE — Moderasi Review: halaman Detail Produk (publik) hanya boleh menampilkan
@@ -42,13 +46,14 @@ async function findAll({ rating, productId } = {}) {
     .select(
       `
       *,
-      users ( nama_lengkap ),
+      users!reviews_user_id_fkey ( nama_lengkap ),
       products (
         nama_produk,
         product_images ( image_url, sort_order ),
         product_variants ( sku )
       ),
-      order_items ( product_name, variant_ukuran, variant_warna, quantity )
+      order_items ( product_name, variant_ukuran, variant_warna, quantity ),
+      admin_replier:users!reviews_admin_reply_by_fkey ( nama_lengkap )
     `
     )
     .order("created_at", { ascending: false });
@@ -176,6 +181,36 @@ async function updateStatus(id, status) {
 }
 
 /**
+ * UPDATE — Balasan Review oleh Admin: menyimpan/mengubah balasan resmi Admin
+ * untuk satu review. Dipakai baik untuk balasan baru maupun Edit Balasan —
+ * keduanya UPDATE terhadap kolom admin_reply* pada baris review yang sama
+ * (bukan baris baru), sesuai aturan "setiap review maksimal satu balasan".
+ */
+async function setAdminReply(id, { message, adminId }) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .update({ admin_reply: message, admin_reply_at: new Date().toISOString(), admin_reply_by: adminId })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw new AppError(error.message, 500);
+  return data;
+}
+
+/** UPDATE — Balasan Review oleh Admin: Hapus Balasan. Review & data lain tetap
+ * ada, hanya kolom balasan yang dikosongkan kembali. */
+async function removeAdminReply(id) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .update({ admin_reply: null, admin_reply_at: null, admin_reply_by: null })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw new AppError(error.message, 500);
+  return data;
+}
+
+/**
  * UPDATE — Card Produk: Rating & Total Terjual.
  * Versi batch dari getAverageRating() di atas — dipakai productService supaya
  * halaman yang menampilkan banyak Card Produk sekaligus (Home, Semua Produk,
@@ -224,4 +259,6 @@ module.exports = {
   getAverageRating,
   getAverageRatings,
   updateStatus,
+  setAdminReply,
+  removeAdminReply,
 };

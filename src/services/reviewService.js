@@ -1,16 +1,26 @@
 const reviewRepository = require("../repositories/reviewRepository");
 const orderRepository = require("../repositories/orderRepository");
+const reviewVoteRepository = require("../repositories/reviewVoteRepository");
+const productRepository = require("../repositories/productRepository");
+const notificationService = require("./notificationService");
 const { AppError } = require("../utils/AppError");
 
 /**
  * UPDATE 7 — `purchaseInfo` diambil dari order_items (lewat order_item_id) yang
  * menjadi sumber ulasan ini, bukan data statis/hardcode. Bernilai null untuk
  * ulasan lama (dibuat sebelum UPDATE 7) yang belum tercatat order_item_id-nya.
+ *
+ * UPDATE — Review Helpful & Balasan Admin: `voteContext` (opsional) berisi
+ * jumlah vote & pilihan vote user yang sedang login untuk review ini —
+ * dihitung terpisah di getReviewsByProduct (batch, lihat komentar di sana)
+ * supaya toResponse tetap murni fungsi mapping tanpa query tambahan sendiri.
+ * Review yang belum punya vote sama sekali otomatis fallback ke 0/0/null.
  */
-function toResponse(review) {
+function toResponse(review, voteContext = {}) {
   const productImages = (review.products?.product_images || []).sort((a, b) => a.sort_order - b.sort_order);
   const productVariants = review.products?.product_variants || [];
   const purchasedItem = review.order_items || null;
+  const { voteCounts, myVote } = voteContext;
 
   return {
     id: review.id,
@@ -33,13 +43,46 @@ function toResponse(review) {
           quantity: purchasedItem.quantity ?? null,
         }
       : null,
+    // UPDATE — Review Helpful: jumlah vote "Membantu"/"Tidak Membantu" +
+    // pilihan vote milik user yang sedang login (null kalau belum login/belum vote).
+    helpfulVotes: {
+      membantu: voteCounts?.membantu ?? 0,
+      tidakMembantu: voteCounts?.tidakMembantu ?? 0,
+    },
+    myVote: myVote ?? null,
+    // UPDATE — Balasan Review oleh Admin: null kalau review ini belum dibalas.
+    adminReply: review.admin_reply
+      ? {
+          message: review.admin_reply,
+          repliedAt: review.admin_reply_at,
+          repliedByName: review.admin_replier?.nama_lengkap ?? "NutWear Official",
+        }
+      : null,
   };
 }
 
-async function getReviewsByProduct(productId) {
+/**
+ * UPDATE — Review Helpful: `currentUserId` opsional — hanya diisi kalau
+ * request datang dari user yang sedang login (lewat middleware
+ * attachUserIfPresent, lihat reviewRoutes.js), supaya pengunjung yang belum
+ * login tetap bisa melihat review + jumlah vote seperti biasa, hanya tanpa
+ * `myVote` (selalu null). Jumlah vote & vote user dihitung batch (satu query
+ * masing-masing untuk seluruh review produk ini), bukan satu query per review.
+ */
+async function getReviewsByProduct(productId, currentUserId) {
   const reviews = await reviewRepository.findByProduct(productId);
   const summary = await reviewRepository.getAverageRating(productId);
-  return { items: reviews.map(toResponse), summary };
+
+  const reviewIds = reviews.map((r) => r.id);
+  const [voteCountsMap, myVotesMap] = await Promise.all([
+    reviewVoteRepository.getCountsForReviews(reviewIds),
+    currentUserId ? reviewVoteRepository.getUserVotesForReviews(reviewIds, currentUserId) : {},
+  ]);
+
+  const items = reviews.map((review) =>
+    toResponse(review, { voteCounts: voteCountsMap[review.id], myVote: myVotesMap[review.id] })
+  );
+  return { items, summary };
 }
 
 // UPDATE — Filter Review berdasarkan Produk (Review Admin): `productId` diteruskan
@@ -132,6 +175,96 @@ async function setReviewStatus(id, status) {
   return toResponse(full);
 }
 
+/**
+ * UPDATE — Review Helpful: memberi vote baru ATAU mengganti pilihan vote yang
+ * sudah ada (satu user hanya boleh punya satu vote per review — lihat unique
+ * index review_id+user_id di database). Mengembalikan jumlah vote terbaru
+ * supaya frontend langsung tahu angka yang benar tanpa perlu refetch seluruh
+ * daftar review.
+ */
+async function setVote(userId, reviewId, vote) {
+  if (!["membantu", "tidak_membantu"].includes(vote)) {
+    throw new AppError("Pilihan vote tidak valid", 400);
+  }
+
+  const review = await reviewRepository.findById(reviewId);
+  if (!review) throw new AppError("Ulasan tidak ditemukan", 404);
+
+  await reviewVoteRepository.upsert(reviewId, userId, vote);
+  const counts = await reviewVoteRepository.getCountsForReviews([reviewId]);
+  const voteCounts = counts[reviewId] ?? { membantu: 0, tidakMembantu: 0 };
+
+  return {
+    reviewId,
+    helpfulVotes: voteCounts,
+    myVote: vote,
+  };
+}
+
+/**
+ * UPDATE — Review Helpful: user membatalkan/menghapus vote miliknya sendiri
+ * pada satu review. Jumlah vote ikut diperbarui (dihitung ulang dari data
+ * asli, bukan dikurangi manual) supaya selalu akurat.
+ */
+async function removeVote(userId, reviewId) {
+  const review = await reviewRepository.findById(reviewId);
+  if (!review) throw new AppError("Ulasan tidak ditemukan", 404);
+
+  await reviewVoteRepository.remove(reviewId, userId);
+  const counts = await reviewVoteRepository.getCountsForReviews([reviewId]);
+  const voteCounts = counts[reviewId] ?? { membantu: 0, tidakMembantu: 0 };
+
+  return {
+    reviewId,
+    helpfulVotes: voteCounts,
+    myVote: null,
+  };
+}
+
+/**
+ * UPDATE — Balasan Review oleh Admin: membuat balasan baru ATAU mengedit
+ * balasan yang sudah ada (keduanya lewat fungsi yang sama — UPDATE terhadap
+ * kolom admin_reply* pada baris review yang sama, sesuai aturan "setiap
+ * review maksimal satu balasan resmi"). Mengirim notifikasi ke pemilik review
+ * setelah balasan berhasil disimpan (fire-and-forget, tidak boleh membuat
+ * balasan gagal tersimpan hanya karena notifikasi gagal terkirim).
+ */
+async function replyToReview(adminId, reviewId, message) {
+  const review = await reviewRepository.findById(reviewId);
+  if (!review) throw new AppError("Ulasan tidak ditemukan", 404);
+
+  const updated = await reviewRepository.setAdminReply(reviewId, { message, adminId });
+  const full = await reviewRepository.findById(updated.id);
+
+  const product = await productRepository.findById(review.product_id).catch(() => null);
+  if (product) {
+    notificationService
+      .notifyReviewReplied({
+        userId: review.user_id,
+        reviewId: review.id,
+        productName: product.nama_produk,
+        productSlug: product.slug,
+      })
+      .catch(() => {});
+  }
+
+  return toResponse(full);
+}
+
+/**
+ * UPDATE — Balasan Review oleh Admin: Hapus Balasan. Review tetap ada, hanya
+ * kolom balasan yang dikosongkan kembali — tidak mengirim notifikasi baru
+ * (hanya balasan baru/diedit yang dikirim notifikasi ke user).
+ */
+async function deleteReply(reviewId) {
+  const review = await reviewRepository.findById(reviewId);
+  if (!review) throw new AppError("Ulasan tidak ditemukan", 404);
+
+  const updated = await reviewRepository.removeAdminReply(reviewId);
+  const full = await reviewRepository.findById(updated.id);
+  return toResponse(full);
+}
+
 module.exports = {
   getReviewsByProduct,
   getAllReviews,
@@ -139,4 +272,8 @@ module.exports = {
   updateReview,
   deleteReview,
   setReviewStatus,
+  setVote,
+  removeVote,
+  replyToReview,
+  deleteReply,
 };

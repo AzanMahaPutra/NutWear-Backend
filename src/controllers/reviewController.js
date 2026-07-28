@@ -2,8 +2,11 @@ const reviewService = require("../services/reviewService");
 const { successResponse } = require("../utils/response");
 const { asyncHandler } = require("../utils/asyncHandler");
 
+// UPDATE — Review Helpful: req.user hanya terisi kalau user sedang login
+// (lewat middleware attachUserIfPresent, opsional — lihat reviewRoutes.js),
+// dipakai supaya setiap review bisa menyertakan `myVote` milik user tersebut.
 const getByProduct = asyncHandler(async (req, res) => {
-  const result = await reviewService.getReviewsByProduct(req.params.productId);
+  const result = await reviewService.getReviewsByProduct(req.params.productId, req.user?.id);
   return successResponse(res, { message: "Ulasan produk berhasil diambil", data: result.items, meta: result.summary });
 });
 
@@ -40,4 +43,29 @@ const updateStatus = asyncHandler(async (req, res) => {
   return successResponse(res, { message, data: review });
 });
 
-module.exports = { getByProduct, getAll, create, update, remove, updateStatus };
+// UPDATE — Review Helpful: user memberi/mengganti vote Membantu/Tidak Membantu.
+const vote = asyncHandler(async (req, res) => {
+  const result = await reviewService.setVote(req.user.id, req.params.id, req.body.vote);
+  return successResponse(res, { message: "Vote berhasil disimpan", data: result });
+});
+
+// UPDATE — Review Helpful: user menghapus vote miliknya sendiri.
+const removeVote = asyncHandler(async (req, res) => {
+  const result = await reviewService.removeVote(req.user.id, req.params.id);
+  return successResponse(res, { message: "Vote berhasil dihapus", data: result });
+});
+
+// UPDATE — Balasan Review oleh Admin: buat balasan baru ATAU edit balasan
+// yang sudah ada (endpoint yang sama, lihat reviewService.replyToReview).
+const reply = asyncHandler(async (req, res) => {
+  const review = await reviewService.replyToReview(req.user.id, req.params.id, req.body.message);
+  return successResponse(res, { message: "Balasan berhasil dikirim", data: review });
+});
+
+// UPDATE — Balasan Review oleh Admin: Hapus Balasan.
+const deleteReply = asyncHandler(async (req, res) => {
+  const review = await reviewService.deleteReply(req.params.id);
+  return successResponse(res, { message: "Balasan berhasil dihapus", data: review });
+});
+
+module.exports = { getByProduct, getAll, create, update, remove, updateStatus, vote, removeVote, reply, deleteReply };

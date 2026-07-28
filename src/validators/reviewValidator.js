@@ -24,4 +24,26 @@ const updateStatusValidator = [
     .withMessage("Status harus 'ditampilkan' atau 'disembunyikan'"),
 ];
 
-module.exports = { createReviewValidator, updateReviewValidator, updateStatusValidator };
+// UPDATE — Review Helpful: validasi body saat user memberi/mengganti vote.
+const voteValidator = [
+  body("vote").isIn(["membantu", "tidak_membantu"]).withMessage("Vote harus 'membantu' atau 'tidak_membantu'"),
+];
+
+// UPDATE — Balasan Review oleh Admin: validasi body saat Admin membalas/mengedit balasan.
+const replyValidator = [
+  body("message")
+    .isString()
+    .trim()
+    .notEmpty()
+    .withMessage("Isi balasan wajib diisi")
+    .isLength({ max: 1000 })
+    .withMessage("Isi balasan maksimal 1000 karakter"),
+];
+
+module.exports = {
+  createReviewValidator,
+  updateReviewValidator,
+  updateStatusValidator,
+  voteValidator,
+  replyValidator,
+};

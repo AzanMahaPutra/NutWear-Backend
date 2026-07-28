@@ -106,16 +106,6 @@ async function notifyOrderStatus(order) {
  */
 async function notifyNewArrival(product) {
   const userIds = await userRepository.findAllCustomerIds();
-  // Diagnostik — notifyNewArrival dipanggil "fire-and-forget" dari productService
-  // (kegagalannya tidak boleh menggagalkan create/update produk), jadi kalau tidak
-  // di-log di sini, error yang terjadi (mis. SUPABASE_SERVICE_ROLE_KEY belum diset,
-  // tidak ada user berrole "customer", dll.) akan hilang begitu saja tanpa jejak.
-  if (userIds.length === 0) {
-    console.warn(
-      `[notifyNewArrival] Tidak ada user dengan role "customer" ditemukan — notifikasi New Arrival untuk produk "${product.namaProduk}" (${product.id}) tidak dikirim ke siapa pun.`
-    );
-    return;
-  }
   await notificationRepository.createForUsers(userIds, {
     type: "new_arrival",
     title: "Produk Baru!",
@@ -202,6 +192,23 @@ async function notifyUnbanRejected(userId) {
   });
 }
 
+/**
+ * Notifikasi Balasan Review oleh Admin (UPDATE — Balasan Review oleh Admin) —
+ * dikirim hanya ke user pemilik review yang bersangkutan, dipanggil dari
+ * reviewService.replyToReview setelah balasan berhasil disimpan. `link`
+ * mengarah ke Detail Produk dengan query `reviewId` supaya frontend bisa
+ * langsung scroll & highlight review yang dibalas (lihat ProductReviewsSection.tsx).
+ */
+async function notifyReviewReplied({ userId, reviewId, productName, productSlug }) {
+  await notificationRepository.createForUser(userId, {
+    type: "review_reply",
+    title: "Review Anda Telah Dibalas",
+    message: `Admin telah membalas ulasan Anda pada produk: "${productName}".`,
+    link: productSlug ? `/produk/${productSlug}?reviewId=${reviewId}` : null,
+    referenceId: reviewId,
+  });
+}
+
 module.exports = {
   getNotifications,
   getUnreadCount,
@@ -213,4 +220,5 @@ module.exports = {
   notifyAccountBanned,
   notifyUnbanApproved,
   notifyUnbanRejected,
+  notifyReviewReplied,
 };

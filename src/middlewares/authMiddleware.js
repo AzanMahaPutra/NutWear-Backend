@@ -43,6 +43,45 @@ const requireAuth = asyncHandler(async (req, res, next) => {
 });
 
 /**
+ * UPDATE — Review Helpful: middleware reusable untuk route yang TETAP boleh
+ * diakses tanpa login (mis. GET /reviews/product/:productId, dilihat semua
+ * pengunjung), tapi butuh tahu req.user KALAU user sedang login (supaya bisa
+ * menyertakan `myVote` — pilihan vote Membantu/Tidak Membantu milik user yang
+ * sedang login pada setiap review). Berbeda dengan requireAuth: token yang
+ * tidak ada/tidak valid TIDAK menghasilkan error, req.user hanya dibiarkan
+ * undefined dan request tetap lanjut sebagai pengunjung anonim.
+ */
+const attachUserIfPresent = asyncHandler(async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return next();
+  }
+
+  const token = authHeader.split(" ")[1];
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data.user) {
+    return next();
+  }
+
+  try {
+    const profile = await ensureProfile(data.user);
+    req.user = {
+      id: profile.id,
+      email: profile.email,
+      namaLengkap: profile.nama_lengkap,
+      noHp: profile.no_hp,
+      role: profile.role,
+      status: profile.status ?? "aktif",
+      bannedReason: profile.banned_reason ?? null,
+    };
+  } catch {
+    // Token valid tapi profil gagal diambil — tetap lanjutkan sebagai anonim
+    // daripada menggagalkan request publik ini.
+  }
+  next();
+});
+
+/**
  * Middleware reusable untuk membatasi akses berdasarkan role (mis. hanya admin).
  * Dipakai setelah requireAuth: requireAuth, requireRole("admin")
  */
@@ -71,4 +110,4 @@ function blockIfBanned(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireRole, blockIfBanned };
+module.exports = { requireAuth, requireRole, blockIfBanned, attachUserIfPresent };
