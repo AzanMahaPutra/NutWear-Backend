@@ -2,12 +2,12 @@ const { body } = require("express-validator");
 
 const updateProfileValidator = [
   body("namaLengkap").optional().trim().isLength({ min: 3 }).withMessage("Nama lengkap minimal 3 karakter"),
-  body("noHp").optional().isMobilePhone("id-ID").withMessage("Nomor HP tidak valid"),
+  body("noHp").optional().matches(/^(^\+62|62|^08)\d{7,13}$/).withMessage("Nomor HP tidak valid"),
 ];
 
 const addressValidator = [
   body("receiverName").trim().isLength({ min: 3 }).withMessage("Nama penerima minimal 3 karakter"),
-  body("phone").isMobilePhone("id-ID").withMessage("Nomor telepon tidak valid"),
+  body("phone").matches(/^(^\+62|62|^08)\d{7,13}$/).withMessage("Nomor telepon tidak valid"),
   body("province").trim().notEmpty().withMessage("Provinsi wajib diisi"),
   body("city").trim().notEmpty().withMessage("Kota wajib diisi"),
   body("district").trim().notEmpty().withMessage("Kecamatan wajib diisi"),

@@ -10,12 +10,15 @@ const getByProduct = asyncHandler(async (req, res) => {
   return successResponse(res, { message: "Ulasan produk berhasil diambil", data: result.items, meta: result.summary });
 });
 
-// UPDATE — Filter Review berdasarkan Produk (Review Admin): terima productId
-// dari query string, dipakai bersamaan dengan filter rating yang sudah ada.
+// UPDATE — Search & Filter Kategori (Review Admin): terima `search` (Nama
+// Produk/SKU/Nama User, partial) dan `categoryId` dari query string, dipakai
+// bersamaan dengan filter rating & productId yang sudah ada (semuanya AND).
 const getAll = asyncHandler(async (req, res) => {
   const rating = req.query.rating ? Number(req.query.rating) : undefined;
   const productId = req.query.productId || undefined;
-  const reviews = await reviewService.getAllReviews({ rating, productId });
+  const categoryId = req.query.categoryId || undefined;
+  const search = req.query.search ? String(req.query.search).trim() || undefined : undefined;
+  const reviews = await reviewService.getAllReviews({ rating, productId, categoryId, search });
   return successResponse(res, { message: "Seluruh ulasan berhasil diambil", data: reviews });
 });
 

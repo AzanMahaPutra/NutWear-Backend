@@ -39,16 +39,28 @@ async function findByProduct(productId) {
  * UPDATE — `productId` opsional untuk filter berdasarkan produk. Filter dilakukan
  * di query database (bukan di frontend) supaya tetap ringan walau jumlah review
  * sudah banyak, dan bisa dipakai bersamaan dengan filter `rating` (keduanya AND).
+ *
+ * UPDATE — Search & Filter Kategori (Review Admin):
+ * - `categoryId` memfilter lewat relasi products (butuh `products!inner` supaya
+ *   PostgREST bisa memfilter kolom tabel yang di-embed lewat notasi titik —
+ *   pola yang sama persis dengan `findInventory` di stockRepository.js).
+ * - `search` mencari berdasarkan Nama Produk (sebagian kata), SKU Produk, ATAU
+ *   Nama User — dilakukan lewat 2 query kecil (cari id produk yang cocok nama/
+ *   SKU-nya, cari id user yang cocok namanya) lalu satu query utama memakai
+ *   `.or("product_id.in.(...),user_id.in.(...)")`. Semua tetap query database
+ *   (bukan fetch seluruh review lalu difilter di JavaScript), dan tetap bisa
+ *   dipakai bersamaan dengan rating/productId/categoryId (semuanya AND).
  */
-async function findAll({ rating, productId } = {}) {
+async function findAll({ rating, productId, categoryId, search } = {}) {
   let query = supabase
     .from("reviews")
     .select(
       `
       *,
       users!reviews_user_id_fkey ( nama_lengkap ),
-      products (
+      products!inner (
         nama_produk,
+        category_id,
         product_images ( image_url, sort_order ),
         product_variants ( sku )
       ),
@@ -60,6 +72,36 @@ async function findAll({ rating, productId } = {}) {
 
   if (rating) query = query.eq("rating", rating);
   if (productId) query = query.eq("product_id", productId);
+  if (categoryId) query = query.eq("products.category_id", categoryId);
+
+  if (search) {
+    const term = `%${search}%`;
+    const [productMatches, variantMatches, userMatches] = await Promise.all([
+      supabase.from("products").select("id").ilike("nama_produk", term),
+      supabase.from("product_variants").select("product_id").ilike("sku", term),
+      supabase.from("users").select("id").ilike("nama_lengkap", term),
+    ]);
+    if (productMatches.error) throw new AppError(productMatches.error.message, 500);
+    if (variantMatches.error) throw new AppError(variantMatches.error.message, 500);
+    if (userMatches.error) throw new AppError(userMatches.error.message, 500);
+
+    const productIds = Array.from(
+      new Set([
+        ...(productMatches.data || []).map((p) => p.id),
+        ...(variantMatches.data || []).map((v) => v.product_id),
+      ])
+    );
+    const userIds = (userMatches.data || []).map((u) => u.id);
+
+    // Tidak ada produk maupun user yang cocok sama sekali — langsung kembalikan
+    // hasil kosong tanpa perlu query utama ke tabel reviews.
+    if (productIds.length === 0 && userIds.length === 0) return [];
+
+    const orParts = [];
+    if (productIds.length > 0) orParts.push(`product_id.in.(${productIds.join(",")})`);
+    if (userIds.length > 0) orParts.push(`user_id.in.(${userIds.join(",")})`);
+    query = query.or(orParts.join(","));
+  }
 
   const { data, error } = await query;
   if (error) throw new AppError(error.message, 500);

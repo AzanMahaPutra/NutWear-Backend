@@ -87,8 +87,11 @@ async function getReviewsByProduct(productId, currentUserId) {
 
 // UPDATE — Filter Review berdasarkan Produk (Review Admin): `productId` diteruskan
 // ke reviewRepository.findAll supaya filter dilakukan di database, bukan di frontend.
-async function getAllReviews({ rating, productId } = {}) {
-  const reviews = await reviewRepository.findAll({ rating, productId });
+// UPDATE — Search & Filter Kategori (Review Admin): `categoryId` & `search`
+// (Nama Produk/SKU/Nama User) juga diteruskan apa adanya — seluruh logika
+// pencarian ada di reviewRepository.findAll, service ini hanya meneruskan.
+async function getAllReviews({ rating, productId, categoryId, search } = {}) {
+  const reviews = await reviewRepository.findAll({ rating, productId, categoryId, search });
   return reviews.map(toResponse);
 }
 
