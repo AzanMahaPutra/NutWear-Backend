@@ -1,6 +1,6 @@
 {
   "functions": {
-    "src/app.js": {}
+    "src/app.js": { "maxDuration": 10 }
   },
   "rewrites": [
     { "source": "/(.*)", "destination": "/src/app.js" }
