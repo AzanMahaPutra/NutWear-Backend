@@ -1,8 +1,8 @@
 {
   "functions": {
-    "src/app.js": { "maxDuration": 10 }
+    "api/index.js": { "maxDuration": 10 }
   },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/src/app.js" }
+    { "source": "/(.*)", "destination": "/api/index" }
   ]
 }
