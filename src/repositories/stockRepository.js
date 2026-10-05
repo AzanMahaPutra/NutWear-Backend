@@ -205,6 +205,50 @@ async function findInventory({ search, status, minimumStock, page = 1, pageSize 
   return { data, total: count };
 }
 
+/**
+ * UPDATE #2 — Inventory Stock dikelompokkan per Produk.
+ *
+ * Grouping, filter status (level produk), search, dan pagination dikerjakan
+ * database lewat fungsi SQL `inventory_products` (lihat migration
+ * 20260729_inventory_grouped_by_product.sql) — bukan di Node/browser —
+ * sehingga hanya satu halaman produk (+ agregat jumlah varian per status)
+ * yang pernah dikirim ke aplikasi, berapa pun banyaknya varian.
+ * Wildcard LIKE (% _ \\) pada keyword di-escape supaya dicari apa adanya.
+ */
+function escapeLike(term) {
+  return term.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
+async function findInventoryProducts({ search, status, minimumStock, page = 1, pageSize = 20 } = {}) {
+  const { data, error } = await supabase.rpc("inventory_products", {
+    p_search: search ? escapeLike(search) : null,
+    p_status: status || null,
+    p_minimum: minimumStock,
+    p_limit: pageSize,
+    p_offset: (page - 1) * pageSize,
+  });
+  if (error) throw new AppError(error.message, 500);
+  return { data: data || [], total: data?.[0]?.total_count ?? 0 };
+}
+
+/**
+ * Seluruh varian SATU produk (dimuat saat modal detail dibuka). Produk
+ * nonaktif dianggap tidak ada, konsisten dengan daftar inventory.
+ */
+async function findProductWithVariants(productId) {
+  const { data, error } = await supabase
+    .from("products")
+    .select(
+      `id, nama_produk, slug, is_active, product_images ( image_url, sort_order ),
+      product_variants ( id, ukuran, warna, sku, stok )`
+    )
+    .eq("id", productId)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (error) throw new AppError(error.message, 500);
+  return data;
+}
+
 module.exports = {
   decreaseStock,
   increaseStock,
@@ -215,4 +259,6 @@ module.exports = {
   updateMinimumStock,
   findLowStockVariants,
   findInventory,
+  findInventoryProducts,
+  findProductWithVariants,
 };

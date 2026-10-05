@@ -5,6 +5,7 @@ const {
   updateMinimumStockValidator,
   inventoryQueryValidator,
   setStockValidator,
+  inventoryProductParamValidator,
 } = require("../validators/stockValidator");
 const { handleValidation } = require("../middlewares/handleValidation");
 const { requireAuth, requireRole } = require("../middlewares/authMiddleware");
@@ -19,6 +20,15 @@ router.get("/settings", stockController.getSettings);
 router.put("/settings", updateMinimumStockValidator, handleValidation, stockController.updateSettings);
 router.get("/low-stock", stockController.getLowStock);
 router.get("/inventory", inventoryQueryValidator, handleValidation, stockController.getInventory);
+// UPDATE #2 — Inventory dikelompokkan per Produk (endpoint /inventory di atas
+// tetap ada, level varian). Statis, jadi tetap aman dari "/:variantId/...".
+router.get("/inventory/products", inventoryQueryValidator, handleValidation, stockController.getInventoryProducts);
+router.get(
+  "/inventory/products/:productId",
+  inventoryProductParamValidator,
+  handleValidation,
+  stockController.getInventoryProductDetail
+);
 
 router.patch("/:variantId/adjust", adjustStockValidator, handleValidation, stockController.adjust);
 // UPDATE — Halaman Inventory Stock Admin: modal Edit Stok + tombol Quick Adjustment.

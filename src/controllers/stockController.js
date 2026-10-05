@@ -40,4 +40,16 @@ const setStock = asyncHandler(async (req, res) => {
   return successResponse(res, { message: "Stok berhasil diperbarui", data: variant });
 });
 
-module.exports = { adjust, getLogs, getSettings, updateSettings, getLowStock, getInventory, setStock };
+// --- UPDATE #2 — Inventory Stock dikelompokkan per Produk ---
+const getInventoryProducts = asyncHandler(async (req, res) => {
+  const { search, status, page, pageSize } = req.query;
+  const { items, minimumStock, meta } = await stockService.getInventoryProducts({ search, status, page, pageSize });
+  return successResponse(res, { message: "Daftar Inventory Produk berhasil diambil", data: { items, minimumStock }, meta });
+});
+
+const getInventoryProductDetail = asyncHandler(async (req, res) => {
+  const detail = await stockService.getInventoryProductDetail(req.params.productId);
+  return successResponse(res, { message: "Detail Inventory Produk berhasil diambil", data: detail });
+});
+
+module.exports = { adjust, getLogs, getSettings, updateSettings, getLowStock, getInventory, setStock, getInventoryProducts, getInventoryProductDetail };
