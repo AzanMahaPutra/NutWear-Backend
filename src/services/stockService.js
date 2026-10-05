@@ -184,6 +184,92 @@ async function setInventoryStock(variantId, stokBaru, adminId) {
   return { ...updated, status: statusForStock(updated.stok, minimumStock) };
 }
 
+/**
+ * UPDATE #2 — Inventory Stock dikelompokkan per Produk.
+ *
+ * Status tingkat PRODUK = status terburuk di antara variannya
+ * (habis > menipis > aman), sehingga produk dengan 4 varian aman + 1 menipis
+ * tampil sebagai "menipis". Ambang batas per varian tetap berasal dari
+ * statusForStock + minimum_stock yang sama — tidak ada definisi baru.
+ */
+function productStatusFromCounts({ menipis, habis }) {
+  if (habis > 0) return "habis";
+  if (menipis > 0) return "menipis";
+  return "aman";
+}
+
+/**
+ * Daftar produk (satu item per produk) + ringkasan stok varian-variannya.
+ * Search/filter/pagination/grouping dikerjakan database (lihat
+ * stockRepository.findInventoryProducts) — filter "menipis"/"habis" = produk
+ * yang punya minimal satu varian berstatus itu, "aman" = semua varian aman.
+ */
+async function getInventoryProducts({ search, status, page, pageSize }) {
+  const minimumStock = await stockRepository.getMinimumStock();
+  const pageNum = Math.max(Number(page) || 1, 1);
+  const pageSizeNum = Math.min(Math.max(Number(pageSize) || 20, 1), 100);
+
+  const { data, total } = await stockRepository.findInventoryProducts({
+    search: search?.trim(),
+    status: ["aman", "menipis", "habis"].includes(status) ? status : undefined,
+    minimumStock,
+    page: pageNum,
+    pageSize: pageSizeNum,
+  });
+
+  const items = data.map((row) => {
+    const counts = {
+      aman: Number(row.aman_count),
+      menipis: Number(row.menipis_count),
+      habis: Number(row.habis_count),
+    };
+    return {
+      productId: row.product_id,
+      namaProduk: row.nama_produk,
+      slug: row.slug,
+      imageUrl: row.image_url ?? null,
+      totalVariants: Number(row.total_variants),
+      totalStok: Number(row.total_stok),
+      counts,
+      status: productStatusFromCounts(counts),
+    };
+  });
+
+  return { items, minimumStock, meta: { page: pageNum, pageSize: pageSizeNum, total: Number(total) } };
+}
+
+/**
+ * Detail satu produk untuk modal Inventory: seluruh variannya (warna/ukuran/
+ * SKU/stok/status). Dimuat hanya saat modal dibuka — bukan bagian dari list.
+ */
+async function getInventoryProductDetail(productId) {
+  const product = await stockRepository.findProductWithVariants(productId);
+  if (!product) throw new AppError("Produk tidak ditemukan", 404);
+
+  const minimumStock = await stockRepository.getMinimumStock();
+  const images = [...(product.product_images || [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+  const variants = (product.product_variants || [])
+    .map((v) => ({
+      variantId: v.id,
+      warna: v.warna,
+      ukuran: v.ukuran,
+      sku: v.sku,
+      stok: v.stok,
+      status: statusForStock(v.stok, minimumStock),
+    }))
+    .sort((a, b) => a.warna.localeCompare(b.warna) || a.ukuran.localeCompare(b.ukuran, undefined, { numeric: true }));
+
+  return {
+    productId: product.id,
+    namaProduk: product.nama_produk,
+    slug: product.slug,
+    imageUrl: images[0]?.image_url ?? null,
+    minimumStock,
+    variants,
+  };
+}
+
 module.exports = {
   adjustStock,
   getStockLogs,
@@ -192,4 +278,6 @@ module.exports = {
   getLowStockReport,
   getInventory,
   setInventoryStock,
+  getInventoryProducts,
+  getInventoryProductDetail,
 };
