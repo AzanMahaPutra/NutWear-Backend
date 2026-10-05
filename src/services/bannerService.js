@@ -2,12 +2,23 @@ const bannerRepository = require("../repositories/bannerRepository");
 const supabaseStorage = require("../storage/supabaseStorage");
 const { AppError } = require("../utils/AppError");
 
+const IMAGE_ADJUSTMENT_DEFAULTS = { positionX: 50, positionY: 50, scale: 1 };
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
 function toResponse(b) {
   return {
     id: b.id,
     isActive: b.is_active,
     sortOrder: b.sort_order,
     backgroundImageUrl: b.background_image_url,
+    // Pengaturan tampilan gambar latar. Banner lama / kolom belum termigrasi -> default
+    // (50, 50, 1) = tampilan lama (object-cover, center).
+    imageAdjustment: {
+      positionX: b.image_position_x ?? IMAGE_ADJUSTMENT_DEFAULTS.positionX,
+      positionY: b.image_position_y ?? IMAGE_ADJUSTMENT_DEFAULTS.positionY,
+      scale: b.image_scale == null ? IMAGE_ADJUSTMENT_DEFAULTS.scale : Number(b.image_scale),
+    },
     brand: {
       name: b.brand_name,
       logoUrl: b.brand_logo_url,
@@ -107,6 +118,12 @@ function buildFieldsFromPayload(payload) {
     if (payload[key] === undefined) return undefined;
     return payload[key] === true || payload[key] === "true";
   };
+  const clampedNum = (key, min, max, decimals) => {
+    if (payload[key] === undefined || payload[key] === "" || payload[key] === null) return undefined;
+    const n = Number(payload[key]);
+    if (Number.isNaN(n)) return undefined;
+    return Number(clamp(n, min, max).toFixed(decimals));
+  };
   const nullableStr = (key) => {
     if (payload[key] === undefined) return undefined;
     return payload[key] === "" || payload[key] === null ? null : String(payload[key]);
@@ -142,6 +159,10 @@ function buildFieldsFromPayload(payload) {
     cta_text_color: str("ctaTextColor"),
     cta_radius: num("ctaRadius"),
     cta_size: str("ctaSize"),
+    // Pengaturan tampilan gambar (tidak mengubah file gambar asli).
+    image_position_x: clampedNum("imagePositionX", 0, 100, 0),
+    image_position_y: clampedNum("imagePositionY", 0, 100, 0),
+    image_scale: clampedNum("imageScale", 1, 3, 2),
     is_active: bool("isActive"),
     sort_order: num("sortOrder"),
     // Produk tujuan Hero Banner. "" (dikosongkan admin) -> null (hapus tujuan).

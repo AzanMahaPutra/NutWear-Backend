@@ -40,6 +40,11 @@ const optionalFields = [
   body("ctaRadius").optional({ checkFalsy: true }).isInt({ min: 0 }),
   body("ctaSize").optional({ checkFalsy: true }).isIn(SIZES),
 
+  // Pengaturan tampilan gambar latar (hanya posisi/zoom, file asli tidak diubah).
+  body("imagePositionX").optional({ checkFalsy: true }).isFloat({ min: 0, max: 100 }).withMessage("Posisi X gambar harus 0-100"),
+  body("imagePositionY").optional({ checkFalsy: true }).isFloat({ min: 0, max: 100 }).withMessage("Posisi Y gambar harus 0-100"),
+  body("imageScale").optional({ checkFalsy: true }).isFloat({ min: 1, max: 3 }).withMessage("Zoom gambar harus 1-3"),
+
   body("isActive").optional({ checkFalsy: true }).isBoolean(),
   body("sortOrder").optional({ checkFalsy: true }).isInt(),
   body("removeBrandLogo").optional({ checkFalsy: true }).isBoolean(),

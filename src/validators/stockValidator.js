@@ -1,4 +1,4 @@
-const { body, param, query } = require("express-validator");
+const { body, query } = require("express-validator");
 
 const adjustStockValidator = [
   body("quantity").isInt({ min: 1 }).withMessage("Jumlah harus lebih dari 0"),
@@ -25,13 +25,4 @@ const setStockValidator = [
   body("stokBaru").notEmpty().withMessage("Stok wajib diisi").bail().isInt({ min: 0 }).withMessage("Stok harus berupa angka dan tidak boleh negatif"),
 ];
 
-// UPDATE #2 — detail varian satu produk pada modal Inventory.
-const inventoryProductParamValidator = [param("productId").isUUID().withMessage("ID produk tidak valid")];
-
-module.exports = {
-  adjustStockValidator,
-  updateMinimumStockValidator,
-  inventoryQueryValidator,
-  setStockValidator,
-  inventoryProductParamValidator,
-};
+module.exports = { adjustStockValidator, updateMinimumStockValidator, inventoryQueryValidator, setStockValidator };
