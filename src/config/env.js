@@ -47,7 +47,18 @@ module.exports = {
   // limiter, req.protocol/secure, dll). Tanpa ini, express-rate-limit akan melempar error
   // ERR_ERL_UNEXPECTED_X_FORWARDED_FOR begitu request lewat Cloudflare Tunnel membawa
   // header X-Forwarded-For.
-  trustProxy: ["1", "true"].includes((process.env.TRUST_PROXY || "0").toLowerCase()),
+  // Di Vercel (env VERCEL otomatis diisi) proxy SELALU ada di depan Express, jadi
+  // trust proxy diaktifkan otomatis — tanpa ini `req.ip` = IP proxy Vercel dan SEMUA
+  // user akan berbagi satu bucket rate limit.
+  trustProxy: Boolean(process.env.VERCEL) || ["1", "true"].includes((process.env.TRUST_PROXY || "0").toLowerCase()),
+
+  // Penyimpanan counter rate limit login: "supabase" (terpusat, konsisten antar
+  // instance serverless) atau "memory" (per-proses). Default: supabase di
+  // production/Vercel, memory di lokal. Bisa dipaksa lewat RATE_LIMIT_STORE.
+  rateLimitStore: (
+    process.env.RATE_LIMIT_STORE ||
+    (process.env.VERCEL || process.env.NODE_ENV === "production" ? "supabase" : "memory")
+  ).toLowerCase(),
 
   // CATATAN MIGRASI SUPABASE AUTH: konfigurasi `jwt.*` (JWT_ACCESS_SECRET, dst),
   // `smtp.*` (SMTP_HOST, dst), dan `passwordReset.*` sudah TIDAK dipakai lagi sejak

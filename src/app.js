@@ -43,6 +43,8 @@ app.use(
       return callback(new Error(`Origin tidak diizinkan oleh CORS: ${origin}`));
     },
     credentials: true, // supaya cookie refresh token bisa dikirim cross-origin
+    // Agar frontend (cross-origin) bisa membaca Retry-After saat menerima HTTP 429.
+    exposedHeaders: ["Retry-After"],
   })
 );
 app.use(express.json());

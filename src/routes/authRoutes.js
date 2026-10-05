@@ -8,12 +8,14 @@ const {
 } = require("../validators/authValidator");
 const { handleValidation } = require("../middlewares/handleValidation");
 const { requireAuth } = require("../middlewares/authMiddleware");
-const { authLimiter } = require("../middlewares/rateLimiter");
+const { authLimiter, loginLimiters } = require("../middlewares/rateLimiter");
 
 const router = express.Router();
 
 router.post("/register", authLimiter, registerValidator, handleValidation, authController.register);
-router.post("/login", authLimiter, loginValidator, handleValidation, authController.login);
+// UPDATE #1 — /login memakai loginLimiters (batas + cooldown, store terpusat), bukan authLimiter
+// yang dipakai bersama register/google/forgot-password.
+router.post("/login", ...loginLimiters, loginValidator, handleValidation, authController.login);
 // UPDATE — Login dengan Google: OAuth-nya sendiri (redirect ke Google, tukar
 // code jadi session) sepenuhnya terjadi di browser lewat Supabase Auth
 // (lihat frontend/app/auth/callback). Endpoint ini dipanggil frontend SETELAH
