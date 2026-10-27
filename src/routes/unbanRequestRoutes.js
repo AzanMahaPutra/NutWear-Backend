@@ -1,6 +1,10 @@
 const express = require("express");
 const unbanRequestController = require("../controllers/unbanRequestController");
-const { submitUnbanRequestValidator } = require("../validators/unbanRequestValidator");
+const {
+  submitUnbanRequestValidator,
+  unbanRequestListValidator,
+  deleteUnbanRequestValidator,
+} = require("../validators/unbanRequestValidator");
 const { handleValidation } = require("../middlewares/handleValidation");
 const { requireAuth, requireRole } = require("../middlewares/authMiddleware");
 
@@ -12,8 +16,11 @@ router.post("/", submitUnbanRequestValidator, handleValidation, unbanRequestCont
 router.get("/my/latest", unbanRequestController.getMyLatest);
 
 // Admin — halaman "Permohonan Unban".
-router.get("/", requireRole("admin"), unbanRequestController.getAll);
+router.get("/", requireRole("admin"), unbanRequestListValidator, handleValidation, unbanRequestController.getAll);
 router.patch("/:id/approve", requireRole("admin"), unbanRequestController.approve);
 router.patch("/:id/reject", requireRole("admin"), unbanRequestController.reject);
+
+// UPDATE 09 — hapus permohonan (hanya yang sudah diproses). Otorisasi admin diperiksa SEBELUM validasi ID.
+router.delete("/:id", requireRole("admin"), deleteUnbanRequestValidator, handleValidation, unbanRequestController.remove);
 
 module.exports = router;

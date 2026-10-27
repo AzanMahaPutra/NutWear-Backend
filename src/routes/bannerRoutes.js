@@ -1,6 +1,6 @@
 const express = require("express");
 const bannerController = require("../controllers/bannerController");
-const { bannerCreateValidator, bannerUpdateValidator } = require("../validators/bannerValidator");
+const { bannerCreateValidator, bannerUpdateValidator, bannerReorderValidator } = require("../validators/bannerValidator");
 const { handleValidation } = require("../middlewares/handleValidation");
 const { requireAuth, requireRole } = require("../middlewares/authMiddleware");
 const { upload } = require("../middlewares/uploadMiddleware");
@@ -13,7 +13,7 @@ const bannerFiles = upload.fields([
 ]);
 
 router.get("/", bannerController.getAll);
-router.patch("/reorder", adminOnly, bannerController.reorder);
+router.patch("/reorder", adminOnly, bannerReorderValidator, handleValidation, bannerController.reorder);
 router.post("/", adminOnly, bannerFiles, bannerCreateValidator, handleValidation, bannerController.create);
 router.put("/:id", adminOnly, bannerFiles, bannerUpdateValidator, handleValidation, bannerController.update);
 router.delete("/:id", adminOnly, bannerController.remove);

@@ -2,7 +2,9 @@ const express = require("express");
 const transactionReportController = require("../controllers/transactionReportController");
 const {
   transactionReportListValidator,
+  transactionReportAnalyticsValidator,
   transactionReportExportValidator,
+  transactionReportCsvExportValidator,
 } = require("../validators/transactionReportValidator");
 const { handleValidation } = require("../middlewares/handleValidation");
 const { requireAuth, requireRole } = require("../middlewares/authMiddleware");
@@ -19,6 +21,9 @@ router.use(requireAuth, requireRole("admin"));
 // agar tidak ada konflik path — di sini kedua route sama-sama statis jadi aman, tapi
 // urutan tetap dijaga supaya konsisten.
 router.get("/export", transactionReportExportValidator, handleValidation, transactionReportController.exportExcel);
+// UPDATE 07 — analitik (Statistik/Diagram/Distribusi) & ekspor CSV (transaksi terpilih / hasil filter).
+router.get("/analytics", transactionReportAnalyticsValidator, handleValidation, transactionReportController.getAnalytics);
+router.post("/export-csv", transactionReportCsvExportValidator, handleValidation, transactionReportController.exportCsv);
 router.get("/", transactionReportListValidator, handleValidation, transactionReportController.getReport);
 
 module.exports = router;

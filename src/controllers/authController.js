@@ -2,6 +2,7 @@ const authService = require("../services/authService");
 const { successResponse } = require("../utils/response");
 const { asyncHandler } = require("../utils/asyncHandler");
 const { REFRESH_TOKEN_COOKIE, getRefreshCookieOptions, getClearRefreshCookieOptions } = require("../utils/cookie");
+const { getLoginBlockStatus } = require("../middlewares/rateLimiter");
 
 /**
  * Controller Auth — hanya menangani request/response HTTP,
@@ -32,6 +33,16 @@ const login = asyncHandler(async (req, res) => {
     message: "Login berhasil",
     data: { user, accessToken },
   });
+});
+
+// UPDATE 11 — Status blokir login. Dipanggil frontend saat halaman Login dimuat (refresh / tab
+// baru), saat email diisi, dan saat countdown habis, supaya UI selalu mengikuti backend.
+// READ-ONLY: tidak menghitung percobaan, tidak mengubah/memperpanjang/membuka blokir.
+// Selalu HTTP 200 dengan { blocked, retryAfterSeconds } — 0 detik bila tidak diblokir.
+const loginStatus = asyncHandler(async (req, res) => {
+  const status = await getLoginBlockStatus(req);
+  res.set("Cache-Control", "no-store");
+  return successResponse(res, { message: "OK", data: status });
 });
 
 // UPDATE — Login dengan Google: dipanggil frontend setelah OAuth redirect ke
@@ -98,4 +109,4 @@ const forgotPassword = asyncHandler(async (req, res) => {
 // frontend/services/authService.ts. Ini juga persis skema resmi yang
 // direkomendasikan dokumentasi Supabase Auth untuk alur Reset Password.
 
-module.exports = { register, login, googleLogin, refresh, logout, me, forgotPassword };
+module.exports = { register, login, loginStatus, googleLogin, refresh, logout, me, forgotPassword };

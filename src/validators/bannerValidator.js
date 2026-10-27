@@ -14,6 +14,7 @@ const optionalFields = [
   body("titleColor").optional({ checkFalsy: true }).isString(),
   body("titleHeading").optional({ checkFalsy: true }).isIn(HEADINGS).withMessage("Heading judul tidak valid"),
   body("titleWeight").optional({ checkFalsy: true }).isIn(WEIGHTS).withMessage("Ketebalan font judul tidak valid"),
+  body("titleMaxWidth").optional({ checkFalsy: true }).isInt({ min: 300, max: 1200 }).withMessage("Lebar teks judul harus antara 300-1200 px"),
 
   body("subtitleText").optional({ checkFalsy: true }).isString(),
   body("subtitleColor").optional({ checkFalsy: true }).isString(),
@@ -70,4 +71,16 @@ const bannerUpdateValidator = [
   ...optionalFields,
 ];
 
-module.exports = { bannerCreateValidator, bannerUpdateValidator, HEADINGS, WEIGHTS, SIZES };
+
+/**
+ * Body: { orderedIds: string[] } — SEMUA id dalam urutan akhir (hasil drag & drop).
+ * Di sini hanya cek bentuk + keunikan; cek id milik tabel & kelengkapan dilakukan
+ * atomik di database (fungsi reorder_*), supaya tidak ada race antara cek dan update.
+ */
+const bannerReorderValidator = [
+  body("orderedIds").isArray({ min: 1, max: 500 }).withMessage("Daftar urutan wajib berupa array (maks. 500 item)"),
+  body("orderedIds.*").isUUID().withMessage("Id pada daftar urutan tidak valid"),
+  body("orderedIds").custom((ids) => !Array.isArray(ids) || new Set(ids).size === ids.length).withMessage("Daftar urutan berisi id ganda"),
+];
+
+module.exports = { bannerCreateValidator, bannerUpdateValidator, bannerReorderValidator, HEADINGS, WEIGHTS, SIZES };

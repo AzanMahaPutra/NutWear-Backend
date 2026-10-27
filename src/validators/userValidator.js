@@ -1,4 +1,4 @@
-const { body } = require("express-validator");
+const { body, query } = require("express-validator");
 
 const updateProfileValidator = [
   body("namaLengkap").optional().trim().isLength({ min: 3 }).withMessage("Nama lengkap minimal 3 karakter"),
@@ -21,4 +21,18 @@ const banUserValidator = [
   body("reason").trim().notEmpty().withMessage("Alasan banned wajib diisi").isLength({ max: 500 }).withMessage("Alasan banned maksimal 500 karakter"),
 ];
 
-module.exports = { updateProfileValidator, addressValidator, banUserValidator };
+// UPDATE 08 — GET /users (Admin): pencarian nama/email + pagination.
+const customerListValidator = [
+  query("search")
+    .optional({ checkFalsy: true })
+    .isString()
+    .withMessage("Kata kunci pencarian tidak valid")
+    .bail()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Kata kunci pencarian maksimal 100 karakter"),
+  query("page").optional({ checkFalsy: true }).isInt({ min: 1, max: 1000000 }).withMessage("Halaman tidak valid"),
+  query("limit").optional({ checkFalsy: true }).isInt({ min: 1, max: 100 }).withMessage("Limit tidak valid"),
+];
+
+module.exports = { updateProfileValidator, addressValidator, banUserValidator, customerListValidator };

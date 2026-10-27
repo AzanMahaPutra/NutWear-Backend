@@ -3,12 +3,13 @@ const authController = require("../controllers/authController");
 const {
   registerValidator,
   loginValidator,
+  loginStatusValidator,
   forgotPasswordValidator,
   googleLoginValidator,
 } = require("../validators/authValidator");
 const { handleValidation } = require("../middlewares/handleValidation");
 const { requireAuth } = require("../middlewares/authMiddleware");
-const { authLimiter, loginLimiters } = require("../middlewares/rateLimiter");
+const { authLimiter, loginLimiters, loginStatusLimiter } = require("../middlewares/rateLimiter");
 
 const router = express.Router();
 
@@ -16,6 +17,10 @@ router.post("/register", authLimiter, registerValidator, handleValidation, authC
 // UPDATE #1 — /login memakai loginLimiters (batas + cooldown, store terpusat), bukan authLimiter
 // yang dipakai bersama register/google/forgot-password.
 router.post("/login", ...loginLimiters, loginValidator, handleValidation, authController.login);
+// UPDATE 11 — Status blokir login (READ-ONLY, publik karena dipakai halaman Login sebelum masuk).
+// Tidak ada endpoint untuk mereset/membuka blokir — blokir hanya berakhir karena waktunya habis.
+// POST (bukan GET) supaya email tidak ikut tercatat di URL/access log.
+router.post("/login/status", loginStatusLimiter, loginStatusValidator, handleValidation, authController.loginStatus);
 // UPDATE — Login dengan Google: OAuth-nya sendiri (redirect ke Google, tukar
 // code jadi session) sepenuhnya terjadi di browser lewat Supabase Auth
 // (lihat frontend/app/auth/callback). Endpoint ini dipanggil frontend SETELAH

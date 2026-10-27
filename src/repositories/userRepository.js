@@ -1,5 +1,6 @@
 const { supabase } = require("../config/supabase");
 const { AppError } = require("../utils/AppError");
+const { buildIlikePattern, normalizeSearchTerm, escapeLike, quotePostgrestValue } = require("../utils/postgrestSearch");
 
 /**
  * Repository users — satu-satunya layer yang melakukan query ke tabel `users`.
@@ -24,14 +25,29 @@ async function findById(id) {
   return data;
 }
 
-async function findAllCustomers() {
-  const { data, error } = await supabase
-    .from("users")
-    .select("id, nama_lengkap, email, no_hp, role, status, banned_reason, banned_at, created_at")
-    .eq("role", "customer")
-    .order("created_at", { ascending: false });
+const CUSTOMER_COLUMNS = "id, nama_lengkap, email, no_hp, role, status, banned_reason, banned_at, created_at";
+/**
+ * UPDATE 08 — Daftar pelanggan dengan pencarian + pagination di database.
+ * `search` dicocokkan (case-insensitive, sebagian kata) ke nama (`nama_lengkap`, yang ditampilkan
+ * sebagai "Nama"/username di Manajemen User — tabel `users` tidak punya kolom username terpisah)
+ * ATAU `email`. Total (`count`) dihitung dari filter yang sama dengan baris yang dikembalikan,
+ * sehingga jumlah halaman selalu konsisten dengan hasil pencarian.
+ * Urutan: terbaru dulu, `id` sebagai pemutus seri supaya halaman tidak saling tumpang tindih.
+ */
+async function findCustomersPage({ search, page = 1, limit = 10 } = {}) {
+  const pattern = buildIlikePattern(search);
+  const from = (page - 1) * limit;
+
+  let q = supabase.from("users").select(CUSTOMER_COLUMNS, { count: "exact" }).eq("role", "customer");
+  if (pattern) {
+    q = q.or(`nama_lengkap.ilike.${pattern},email.ilike.${pattern}`);
+  }
+  const { data, count, error } = await q
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, from + limit - 1);
   if (error) throw new AppError(error.message, 500);
-  return data;
+  return { data: data || [], total: count || 0 };
 }
 
 /**
@@ -123,7 +139,10 @@ async function updateById(id, fields) {
 module.exports = {
   findByEmail,
   findById,
-  findAllCustomers,
+  findCustomersPage,
+  normalizeSearchTerm,
+  escapeLike,
+  quotePostgrestValue,
   findAllCustomerIds,
   create,
   updateById,

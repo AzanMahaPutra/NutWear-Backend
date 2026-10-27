@@ -29,6 +29,7 @@ function toResponse(b) {
       color: b.title_color,
       heading: b.title_heading,
       weight: b.title_weight,
+      maxWidth: b.title_max_width ?? 480,
     },
     subtitle: {
       text: b.subtitle_text,
@@ -136,6 +137,7 @@ function buildFieldsFromPayload(payload) {
     title_color: str("titleColor"),
     title_heading: str("titleHeading"),
     title_weight: str("titleWeight"),
+    title_max_width: clampedNum("titleMaxWidth", 300, 1200, 0),
     subtitle_text: str("subtitleText"),
     subtitle_color: str("subtitleColor"),
     subtitle_heading: str("subtitleHeading"),
@@ -245,12 +247,12 @@ async function deleteBanner(id) {
   return true;
 }
 
-async function reorderBanners(order) {
-  await Promise.all(
-    order
-      .filter((item) => item && item.id)
-      .map((item) => bannerRepository.updateById(item.id, { sort_order: Number(item.sortOrder) }))
-  );
+/**
+ * Simpan urutan banner akhir (orderedIds = semua id dalam urutan baru) dalam satu
+ * operasi atomik. sort_order di-set = posisi di array.
+ */
+async function reorderBanners(orderedIds) {
+  await bannerRepository.reorder(orderedIds);
   return getBanners({});
 }
 

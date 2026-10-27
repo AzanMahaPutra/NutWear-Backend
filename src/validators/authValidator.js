@@ -15,6 +15,11 @@ const loginValidator = [
   body("password").notEmpty().withMessage("Password wajib diisi"),
 ];
 
+// UPDATE 11 — Status blokir login: `email` opsional (kosong = cek berdasarkan IP / cookie petunjuk).
+// Sengaja TIDAK memakai isEmail: yang diperiksa hanya key rate limit, sama seperti /login yang
+// menghitung percobaan SEBELUM format email divalidasi.
+const loginStatusValidator = [body("email").optional({ values: "falsy" }).isString().isLength({ max: 254 })];
+
 const forgotPasswordValidator = [body("email").trim().isEmail().withMessage("Format email tidak valid")];
 
 // resetPasswordValidator DIHAPUS — endpoint /auth/reset-password sudah tidak ada
@@ -30,4 +35,4 @@ const googleLoginValidator = [
   body("refreshToken").optional().isString(),
 ];
 
-module.exports = { registerValidator, loginValidator, forgotPasswordValidator, googleLoginValidator };
+module.exports = { registerValidator, loginValidator, loginStatusValidator, forgotPasswordValidator, googleLoginValidator };

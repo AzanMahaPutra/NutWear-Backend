@@ -13,14 +13,60 @@ function readFilters(query) {
   return { filterType, startDate, endDate, month, year };
 }
 
+/** UPDATE 07 — filter tabel: tanggal + search + kelompok status + sorting (hanya nilai string). */
+function readListFilters(source = {}) {
+  const str = (v) => (typeof v === "string" ? v : undefined);
+  return {
+    ...readFilters(source),
+    search: str(source.search),
+    statusGroup: str(source.statusGroup),
+    sortBy: str(source.sortBy),
+    sortDir: str(source.sortDir),
+  };
+}
+
 const getReport = asyncHandler(async (req, res) => {
   const { page, limit } = req.query;
-  const result = await transactionReportService.getReport(readFilters(req.query), { page, limit });
+  const result = await transactionReportService.getReport(readListFilters(req.query), { page, limit });
   return successResponse(res, {
     message: "Laporan transaksi berhasil diambil",
     data: result.data,
-    meta: { ...result.meta, summary: result.summary },
+    meta: result.meta,
   });
+});
+
+/** UPDATE 07 — data Statistik/Diagram/Distribusi, mengikuti filter tanggal. */
+const getAnalytics = asyncHandler(async (req, res) => {
+  const data = await transactionReportService.getAnalytics(readFilters(req.query));
+  return successResponse(res, { message: "Analitik transaksi berhasil diambil", data });
+});
+
+/**
+ * UPDATE 07 — Ekspor CSV. Hanya MEMBACA data (tidak ada update status pembayaran/pesanan).
+ * Otorisasi admin dipasang di router (requireAuth + requireRole("admin")).
+ */
+const exportCsv = asyncHandler(async (req, res) => {
+  const { mode, ids, filters } = req.body;
+  const prepared = await transactionReportService.prepareCsvExport({
+    mode,
+    ids: mode === "selected" ? ids : undefined,
+    filters: readListFilters(filters ?? {}),
+  });
+
+  const now = new Date();
+  const stamp = now.toISOString().slice(0, 16).replace(/[-:T]/g, "").replace(/^(\d{8})(\d{4})$/, "$1-$2");
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="transaksi-${stamp}.csv"`);
+  res.setHeader("Cache-Control", "no-store");
+
+  try {
+    await prepared.writeTo(res);
+    res.end();
+  } catch (err) {
+    // Header sudah terkirim: tidak bisa mengirim JSON error lagi — putuskan koneksi agar file
+    // yang terpotong tidak dianggap lengkap oleh klien.
+    res.destroy(err);
+  }
 });
 
 /**
@@ -40,4 +86,4 @@ const exportExcel = asyncHandler(async (req, res) => {
   await transactionReportService.exportToExcel(res, filters);
 });
 
-module.exports = { getReport, exportExcel };
+module.exports = { getReport, getAnalytics, exportCsv, exportExcel };

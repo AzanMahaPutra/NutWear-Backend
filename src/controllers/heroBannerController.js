@@ -27,10 +27,9 @@ const remove = asyncHandler(async (req, res) => {
 });
 
 const reorder = asyncHandler(async (req, res) => {
-  const { order } = req.body;
-  if (!Array.isArray(order)) throw new AppError("Format urutan hero banner tidak valid", 400);
-
-  const banners = await heroBannerService.reorderHeroBanners(order);
+  // Format & keunikan id sudah divalidasi di validator; kepemilikan id (milik tabel
+  // ini) dan kelengkapan daftar divalidasi atomik di database.
+  const banners = await heroBannerService.reorderHeroBanners(req.body.orderedIds);
   return successResponse(res, { message: "Urutan hero banner berhasil diperbarui", data: banners });
 });
 

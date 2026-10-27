@@ -158,12 +158,12 @@ async function deleteHeroBanner(id) {
   return true;
 }
 
-async function reorderHeroBanners(order) {
-  await Promise.all(
-    order
-      .filter((item) => item && item.id)
-      .map((item) => heroBannerRepository.updateById(item.id, { sort_order: Number(item.sortOrder) }))
-  );
+/**
+ * Simpan urutan hero banner akhir (orderedIds = semua id dalam urutan baru) dalam
+ * satu operasi atomik. Hanya menyentuh tabel hero_banners.
+ */
+async function reorderHeroBanners(orderedIds) {
+  await heroBannerRepository.reorder(orderedIds);
   return getHeroBanners({});
 }
 

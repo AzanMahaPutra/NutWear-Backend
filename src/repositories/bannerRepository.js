@@ -48,4 +48,22 @@ async function deleteById(id) {
   return true;
 }
 
-module.exports = { findAll, findById, create, updateById, deleteById, getNextSortOrder };
+/**
+ * Simpan urutan akhir secara atomik lewat fungsi Postgres `reorder_banners` (satu
+ * transaksi: validasi id + update sort_order = posisi array). Lihat
+ * database/migrations/20261006_add_banner_reorder_functions.sql.
+ */
+async function reorder(orderedIds) {
+  const { error } = await supabase.rpc("reorder_banners", { p_ids: orderedIds });
+  if (!error) return true;
+
+  const msg = error.message || "";
+  if (msg.includes("REORDER_EMPTY") || msg.includes("REORDER_DUPLICATE")) throw new AppError("Daftar urutan tidak valid", 400);
+  // Id yang tidak ada di tabel ini (mis. baru dihapus admin lain, atau bukan milik tabel ini) dan
+  // daftar yang tidak lengkap sama-sama berarti "daftar di klien sudah usang" -> 409 supaya UI memuat ulang.
+  if (msg.includes("REORDER_UNKNOWN_ID") || msg.includes("REORDER_STALE"))
+    throw new AppError("Daftar sudah berubah di server. Muat ulang halaman lalu atur urutan lagi.", 409);
+  throw new AppError(error.message, 500);
+}
+
+module.exports = { reorder, findAll, findById, create, updateById, deleteById, getNextSortOrder };

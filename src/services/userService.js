@@ -4,6 +4,9 @@ const reviewRepository = require("../repositories/reviewRepository");
 const notificationService = require("./notificationService");
 const { AppError } = require("../utils/AppError");
 
+const DEFAULT_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 100;
+
 function toResponse(user) {
   return {
     id: user.id,
@@ -42,9 +45,12 @@ async function updateProfile(userId, { namaLengkap, noHp }) {
 
 // UPDATE — Halaman Manajemen User Admin: selain data profil, ditambahkan
 // Status Akun, Total Pesanan, dan Total Review per user (lihat CHANGELOG.md).
-async function getAllCustomers() {
-  const customers = await userRepository.findAllCustomers();
-  return Promise.all(
+// UPDATE 08 — mendukung `search` (nama/email) + pagination; mengembalikan { data, meta }.
+async function getAllCustomers({ search, page, limit } = {}) {
+  const pageNum = Math.max(1, Number.parseInt(page, 10) || 1);
+  const limitNum = Math.min(MAX_PAGE_SIZE, Math.max(1, Number.parseInt(limit, 10) || DEFAULT_PAGE_SIZE));
+  const { data: customers, total } = await userRepository.findCustomersPage({ search, page: pageNum, limit: limitNum });
+  const data = await Promise.all(
     customers.map(async (c) => {
       const [orderCount, reviewCount] = await Promise.all([
         orderRepository.countByUser(c.id),
@@ -64,6 +70,10 @@ async function getAllCustomers() {
       };
     })
   );
+  return {
+    data,
+    meta: { page: pageNum, limit: limitNum, total, totalPages: Math.max(1, Math.ceil(total / limitNum)) },
+  };
 }
 
 // UPDATE — Banned User: dipanggil Admin dari halaman Manajemen User.

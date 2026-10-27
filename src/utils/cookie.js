@@ -35,4 +35,26 @@ function getClearRefreshCookieOptions() {
   return rest;
 }
 
-module.exports = { REFRESH_TOKEN_COOKIE, getRefreshCookieOptions, getClearRefreshCookieOptions };
+/**
+ * UPDATE 11 — Cookie PETUNJUK blokir login. Berisi HANYA hash email (32 hex, bukan email,
+ * password, atau token) dan hanya hidup selama blokir berlangsung. Fungsinya cuma
+ * supaya setelah refresh / tab baru — saat kolom email di form masih kosong — backend
+ * tahu akun mana yang perlu dicek statusnya. Cookie ini BUKAN sumber kebenaran:
+ * status & sisa waktu selalu dibaca dari penyimpanan rate limit, dan key yang dicek
+ * tetap digabung dengan IP si pemanggil sehingga cookie palsu tidak berguna.
+ * Atribut mengikuti cookie refresh token (httpOnly, secure + sameSite none di production).
+ */
+const LOGIN_BLOCK_COOKIE = "nutwear_login_block";
+
+function getLoginBlockCookieOptions(maxAgeMs) {
+  const { maxAge, ...rest } = getRefreshCookieOptions();
+  return { ...rest, maxAge: Math.max(1000, Math.ceil(maxAgeMs)) };
+}
+
+module.exports = {
+  REFRESH_TOKEN_COOKIE,
+  getRefreshCookieOptions,
+  getClearRefreshCookieOptions,
+  LOGIN_BLOCK_COOKIE,
+  getLoginBlockCookieOptions,
+};

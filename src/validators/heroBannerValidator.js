@@ -28,4 +28,15 @@ const optionalFields = [
 const heroBannerCreateValidator = [...optionalFields];
 const heroBannerUpdateValidator = [...optionalFields];
 
-module.exports = { heroBannerCreateValidator, heroBannerUpdateValidator, LINK_TYPES };
+/**
+ * Body: { orderedIds: string[] } — SEMUA id hero banner dalam urutan akhir (hasil drag & drop).
+ * Di sini hanya cek bentuk + keunikan; cek id milik tabel & kelengkapan dilakukan
+ * atomik di database (fungsi reorder_hero_banners).
+ */
+const heroBannerReorderValidator = [
+  body("orderedIds").isArray({ min: 1, max: 500 }).withMessage("Daftar urutan wajib berupa array (maks. 500 item)"),
+  body("orderedIds.*").isUUID().withMessage("Id pada daftar urutan tidak valid"),
+  body("orderedIds").custom((ids) => !Array.isArray(ids) || new Set(ids).size === ids.length).withMessage("Daftar urutan berisi id ganda"),
+];
+
+module.exports = { heroBannerCreateValidator, heroBannerUpdateValidator, heroBannerReorderValidator, LINK_TYPES };

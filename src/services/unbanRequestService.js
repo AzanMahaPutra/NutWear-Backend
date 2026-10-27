@@ -2,6 +2,10 @@ const unbanRequestRepository = require("../repositories/unbanRequestRepository")
 const userRepository = require("../repositories/userRepository");
 const notificationService = require("./notificationService");
 const { AppError } = require("../utils/AppError");
+const logger = require("../utils/logger");
+
+const DEFAULT_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 100;
 
 function toResponse(request) {
   return {
@@ -49,9 +53,15 @@ async function getMyLatestRequest(userId) {
   return latest ? toResponse(latest) : null;
 }
 
-async function getAllRequests() {
-  const requests = await unbanRequestRepository.findAll();
-  return requests.map(toResponse);
+// UPDATE 09 — search (nama/email) + filter status + pagination; mengembalikan { data, meta }.
+async function getAllRequests({ search, status, page, limit } = {}) {
+  const pageNum = Math.max(1, Number.parseInt(page, 10) || 1);
+  const limitNum = Math.min(MAX_PAGE_SIZE, Math.max(1, Number.parseInt(limit, 10) || DEFAULT_PAGE_SIZE));
+  const { data, total } = await unbanRequestRepository.findPage({ search, status, page: pageNum, limit: limitNum });
+  return {
+    data: data.map(toResponse),
+    meta: { page: pageNum, limit: limitNum, total, totalPages: Math.max(1, Math.ceil(total / limitNum)) },
+  };
 }
 
 async function getRequestOrThrow(id) {
@@ -115,4 +125,30 @@ async function rejectRequest(adminId, requestId) {
   return toResponse(updated);
 }
 
-module.exports = { submitRequest, getMyLatestRequest, getAllRequests, approveRequest, rejectRequest };
+/**
+ * UPDATE 09 — Admin menghapus permohonan dari daftar. Aturan bisnis:
+ *  - Hanya permohonan yang SUDAH diproses (disetujui/ditolak) yang boleh dihapus. Permohonan
+ *    "menunggu" harus disetujui/ditolak dulu: menghapusnya diam-diam akan membuang banding
+ *    pengguna tanpa keputusan dan tanpa notifikasi.
+ *  - Yang dihapus hanya baris permohonan. Akun pengguna (termasuk status banned/aktif), notifikasi,
+ *    dan data transaksi tidak disentuh.
+ */
+async function deleteRequest(adminId, requestId) {
+  const request = await getRequestOrThrow(requestId);
+  if (request.status === "menunggu") {
+    throw new AppError("Permohonan yang masih menunggu harus disetujui atau ditolak terlebih dahulu sebelum dihapus", 409);
+  }
+
+  const deleted = await unbanRequestRepository.deleteProcessedById(requestId);
+  if (!deleted) throw new AppError("Permohonan unban tidak ditemukan atau sudah dihapus", 404);
+
+  logger.info("[unbanRequestService] Admin menghapus permohonan unban", {
+    adminId,
+    requestId,
+    userId: request.user_id,
+    status: request.status,
+  });
+  return { id: requestId };
+}
+
+module.exports = { submitRequest, getMyLatestRequest, getAllRequests, approveRequest, rejectRequest, deleteRequest };

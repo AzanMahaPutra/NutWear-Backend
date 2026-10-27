@@ -1,5 +1,6 @@
 const { supabase } = require("../config/supabase");
 const { AppError } = require("../utils/AppError");
+const { normalizeSearchTerm, escapeLike: escapeLikeTerm, quotePostgrestValue } = require("../utils/postgrestSearch");
 
 /**
  * `meta` (opsional, dipakai fitur Riwayat Perubahan Stok — Halaman Inventory
@@ -169,20 +170,23 @@ async function findInventory({ search, status, minimumStock, page = 1, pageSize 
     )
     .eq("products.is_active", true);
 
-  if (search) {
-    const term = `%${search}%`;
-    
+  const normalizedSearch = normalizeSearchTerm(search);
+  if (normalizedSearch) {
+    // Kata kunci = teks biasa: wildcard di-escape, dan di dalam .or() nilai dibungkus kutip
+    // sehingga koma/kurung tidak menjadi sintaks filter PostgREST.
+    const term = `%${escapeLikeTerm(normalizedSearch)}%`;
+
     // Cari product_id yang cocok dengan search (berdasarkan nama_produk)
     const { data: matchedProducts } = await supabase
       .from("products")
       .select("id")
       .ilike("nama_produk", term);
-      
-    const productIds = matchedProducts?.map(p => p.id) || [];
-    
+
+    const productIds = matchedProducts?.map((p) => p.id) || [];
+
     if (productIds.length > 0) {
       const idsString = `(${productIds.join(",")})`;
-      query = query.or(`sku.ilike.${term},product_id.in.${idsString}`);
+      query = query.or(`sku.ilike.${quotePostgrestValue(term)},product_id.in.${idsString}`);
     } else {
       query = query.ilike("sku", term);
     }

@@ -56,12 +56,13 @@ if (env.nodeEnv !== "test") {
 }
 
 // Rate limiter global — mencegah brute force / abuse.
-// Endpoint sensitif (auth) bisa diberi limiter lebih ketat di route masing-masing bila perlu.
+// Di development/test dilepaskan agar tidak memblokir SSR Next.js & hot-reload saat testing lokal.
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: env.nodeEnv === "production" ? 2000 : 10000,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => env.nodeEnv === "development" || env.nodeEnv === "test",
 });
 app.use(globalLimiter);
 

@@ -13,8 +13,14 @@ const updateProfile = asyncHandler(async (req, res) => {
 });
 
 const getAllCustomers = asyncHandler(async (req, res) => {
-  const customers = await userService.getAllCustomers();
-  return successResponse(res, { message: "Daftar pelanggan berhasil diambil", data: customers });
+  // UPDATE 08 — search (nama/email) + pagination. Hanya nilai string yang diteruskan.
+  const str = (v) => (typeof v === "string" ? v : undefined);
+  const { data, meta } = await userService.getAllCustomers({
+    search: str(req.query.search),
+    page: str(req.query.page),
+    limit: str(req.query.limit),
+  });
+  return successResponse(res, { message: "Daftar pelanggan berhasil diambil", data, meta });
 });
 
 // UPDATE — Banned User: Admin melakukan banned terhadap satu user lewat

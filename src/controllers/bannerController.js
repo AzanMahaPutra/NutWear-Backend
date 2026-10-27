@@ -28,10 +28,9 @@ const remove = asyncHandler(async (req, res) => {
 });
 
 const reorder = asyncHandler(async (req, res) => {
-  const { order } = req.body;
-  if (!Array.isArray(order)) throw new AppError("Format urutan banner tidak valid", 400);
-
-  const banners = await bannerService.reorderBanners(order);
+  // Format & keunikan id sudah divalidasi di validator; kepemilikan id (milik tabel
+  // ini) dan kelengkapan daftar divalidasi atomik di database.
+  const banners = await bannerService.reorderBanners(req.body.orderedIds);
   return successResponse(res, { message: "Urutan banner berhasil diperbarui", data: banners });
 });
 
